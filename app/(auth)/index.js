@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Image,
 } from "react-native";
 import { router } from "expo-router";
 import { Colors } from "../../constants/colors";
@@ -15,6 +16,15 @@ export default function SignIn() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.hero}>
+        <Image
+          source={require("../../assets/RTlogo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+          accessibilityLabel="RT logo"
+        />
+      </View>
+
       <View style={styles.form}>
         <Text style={styles.label}>WELCOME BACK</Text>
 
@@ -107,8 +117,18 @@ const styles = StyleSheet.create({
     padding: 20,
   },
 
+  hero: {
+    alignItems: "center",
+    marginTop: 34,
+  },
+
+  logo: {
+    width: 116,
+    height: 116,
+  },
+
   form: {
-    marginTop: 190,
+    marginTop: 30,
   },
 
   label: {
