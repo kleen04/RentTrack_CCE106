@@ -15,10 +15,16 @@ import VehicleCard from "../../components/vehiclecard";
 import { vehicles } from "../../data/vehicles";
 import { Colors } from "../../constants/colors";
 
-const FILTERS = ["All", "Available", "Reserved", "Rented"];
+const FILTERS = [
+  "All",
+  "Available",
+  "Reserved",
+  "Rented",
+];
 
 export default function Garage() {
-  const [activeFilterTab, setActiveFilterTab] = useState("All");
+  const [activeFilterTab, setActiveFilterTab] =
+    useState("All");
 
   const filteredVehicles =
     activeFilterTab === "All"
@@ -42,6 +48,7 @@ export default function Garage() {
           />
 
           <TouchableOpacity
+            activeOpacity={0.8}
             style={styles.addButton}
             onPress={() => router.push("/vehicle/add")}
           >
@@ -50,38 +57,50 @@ export default function Garage() {
         </View>
 
         <View style={styles.pulse}>
-          <Text style={styles.pulseLabel}>
-            FLEET PULSE
-          </Text>
+          <View>
+            <Text style={styles.pulseLabel}>
+              FLEET PULSE
+            </Text>
 
-          <Text style={styles.pulseText}>
-            5 ready · 1 out
-          </Text>
+            <Text style={styles.pulseText}>
+              5 ready · 1 out
+            </Text>
+          </View>
 
           <View style={styles.live}>
-            <Text style={styles.liveText}>● LIVE</Text>
+            <Text style={styles.liveText}>
+              • LIVE
+            </Text>
           </View>
         </View>
 
-        <SearchBar placeholder="Search a vehicle" />
+        <View style={styles.searchWrapper}>
+          <SearchBar placeholder="Search a vehicle" />
+        </View>
 
         <View style={styles.filters}>
           {FILTERS.map((label) => {
-            const isActive = activeFilterTab === label;
+            const isActive =
+              activeFilterTab === label;
 
             return (
               <TouchableOpacity
                 key={label}
-                onPress={() => setActiveFilterTab(label)}
+                activeOpacity={0.8}
+                onPress={() =>
+                  setActiveFilterTab(label)
+                }
                 style={[
                   styles.filterChip,
-                  isActive && styles.filterChipActive,
+                  isActive &&
+                    styles.filterChipActive,
                 ]}
               >
                 <Text
                   style={[
                     styles.filterText,
-                    isActive && styles.filterTextActive,
+                    isActive &&
+                      styles.filterTextActive,
                   ]}
                 >
                   {label}
@@ -119,114 +138,180 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingTop: 20,
     paddingBottom: 30,
   },
 
+
   headerRow: {
     flexDirection: "row",
+    alignItems: "flex-start",
     justifyContent: "space-between",
+    marginBottom: 10,
   },
 
   addButton: {
-    backgroundColor: Colors.primary,
     width: 42,
     height: 42,
+
+    backgroundColor: Colors.primary,
+
     borderRadius: 10,
-    justifyContent: "center",
+
     alignItems: "center",
+    justifyContent: "center",
+
+    marginTop: 0,
   },
 
   addText: {
     color: Colors.background,
-    fontSize: 22,
+    fontSize: 23,
     fontWeight: "700",
-    lineHeight: 22,
+    lineHeight: 25,
     textAlign: "center",
   },
 
+
   pulse: {
+    height: 74,
+
     backgroundColor: Colors.card,
-    borderRadius: 12,
+
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: 16,
+
+    borderRadius: 12,
+
+    paddingHorizontal: 16,
+
+    justifyContent: "center",
+
     marginBottom: 14,
   },
 
   pulseLabel: {
     color: Colors.primary,
+
     fontSize: 9,
     fontWeight: "800",
+
+    letterSpacing: 0.4,
+
+    marginBottom: 6,
   },
 
   pulseText: {
     color: Colors.white,
+
     fontSize: 17,
     fontWeight: "800",
-    marginTop: 6,
+
+    lineHeight: 20,
   },
 
   live: {
     position: "absolute",
-    right: 16,
+
+    right: 17,
     top: 22,
+
     backgroundColor: "#183622",
-    paddingHorizontal: 10,
+
+    paddingHorizontal: 9,
     paddingVertical: 5,
+
     borderRadius: 6,
   },
 
   liveText: {
     color: Colors.primary,
+
     fontSize: 8,
     fontWeight: "800",
+
+    letterSpacing: 0.2,
   },
+
+
+  searchWrapper: {
+    marginBottom: 8,
+  },
+
 
   filters: {
     flexDirection: "row",
+    alignItems: "center",
+
     gap: 8,
+
+    marginTop: 0,
     marginBottom: 28,
   },
 
   filterChip: {
+    height: 34,
+
+    paddingHorizontal: 13,
+
     borderWidth: 1,
     borderColor: Colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+
     borderRadius: 8,
+
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   filterChipActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
+
+    paddingHorizontal: 14,
   },
 
   filterText: {
     color: Colors.muted,
-    fontSize: 11,
+
+    fontSize: 10,
+
+    fontWeight: "500",
   },
 
   filterTextActive: {
     color: Colors.background,
+
+    fontSize: 10,
+
     fontWeight: "800",
   },
 
+
   sectionRow: {
     flexDirection: "row",
+
+    alignItems: "center",
     justifyContent: "space-between",
+
     marginBottom: 12,
   },
 
   sectionTitle: {
     color: "#B9C8C1",
+
     fontSize: 10,
+
     fontWeight: "700",
+
     letterSpacing: 1,
   },
 
   count: {
     color: Colors.muted,
+
     fontSize: 9,
+
+    letterSpacing: 0.3,
   },
 });

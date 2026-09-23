@@ -27,10 +27,21 @@ export default function BookingCard({
       ? "#6D8178"
       : "#B8FF2C";
 
+  const avatarColor =
+    initials === "MR"
+      ? "#6EC4E8"
+      : "#FF7D4D";
+
   return (
     <View style={styles.card}>
+
       <View style={styles.topSection}>
-        <View style={styles.avatar}>
+        <View
+          style={[
+            styles.avatar,
+            { backgroundColor: avatarColor },
+          ]}
+        >
           <Text style={styles.avatarText}>
             {initials}
           </Text>
@@ -65,13 +76,17 @@ export default function BookingCard({
       <View
         style={[
           styles.statusBadge,
-          { borderColor: statusColor },
+          {
+            borderColor: statusColor,
+          },
         ]}
       >
         <Text
           style={[
             styles.statusText,
-            { color: statusColor },
+            {
+              color: statusColor,
+            },
           ]}
         >
           {status}
@@ -113,8 +128,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#203D31",
     borderRadius: 12,
+
     padding: 16,
-    marginBottom: 12,
+
+    marginBottom: 10,
   },
 
   topSection: {
@@ -125,10 +142,12 @@ const styles = StyleSheet.create({
   avatar: {
     width: 40,
     height: 40,
+
     borderRadius: 10,
-    backgroundColor: "#FF7D4D",
+
     alignItems: "center",
     justifyContent: "center",
+
     marginRight: 12,
   },
 
@@ -147,6 +166,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "600",
     letterSpacing: 1,
+
     marginBottom: 4,
   },
 
@@ -154,6 +174,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "600",
+
     marginBottom: 4,
   },
 
@@ -169,15 +190,19 @@ const styles = StyleSheet.create({
   period: {
     color: "#D2DDD8",
     fontSize: 12,
+
     marginTop: 3,
   },
 
   statusBadge: {
     alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+
     borderWidth: 1,
     borderRadius: 5,
+
     marginTop: 10,
   },
 
@@ -188,15 +213,21 @@ const styles = StyleSheet.create({
 
   buttons: {
     flexDirection: "row",
+
     gap: 7,
+
     marginTop: 12,
   },
 
   checkoutButton: {
     flex: 1,
+
     height: 40,
+
     borderRadius: 9,
+
     backgroundColor: "#B8FF2C",
+
     alignItems: "center",
     justifyContent: "center",
   },
@@ -209,11 +240,16 @@ const styles = StyleSheet.create({
 
   detailsButton: {
     flex: 1,
+
     height: 40,
+
     borderRadius: 9,
+
     borderWidth: 1,
     borderColor: "#29453A",
+
     backgroundColor: "#0A1B14",
+
     alignItems: "center",
     justifyContent: "center",
   },

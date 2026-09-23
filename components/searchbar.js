@@ -1,5 +1,9 @@
 import React from "react";
-import { View, TextInput, StyleSheet } from "react-native";
+import {
+  View,
+  TextInput,
+  StyleSheet,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function SearchBar({
@@ -11,7 +15,7 @@ export default function SearchBar({
     <View style={styles.container}>
       <Ionicons
         name="search-outline"
-        size={20}
+        size={19}
         color="#718078"
       />
 
@@ -29,20 +33,27 @@ export default function SearchBar({
 
 const styles = StyleSheet.create({
   container: {
-    height: 48,
+    height: 44,
+
     flexDirection: "row",
     alignItems: "center",
+
     paddingHorizontal: 14,
+
     backgroundColor: "#0D2018",
+
     borderWidth: 1,
     borderColor: "#254237",
-    borderRadius: 10,
+
+    borderRadius: 9,
   },
 
   input: {
     flex: 1,
-    marginLeft: 10,
+
+    marginLeft: 9,
+
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 13,
   },
 });
