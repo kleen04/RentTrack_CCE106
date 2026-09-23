@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   View,
   Text,
@@ -14,7 +15,20 @@ import VehicleCard from "../../components/vehiclecard";
 import { vehicles } from "../../data/vehicles";
 import { Colors } from "../../constants/colors";
 
+const FILTERS = ["All", "Available", "Reserved", "Rented"];
+
 export default function Garage() {
+  const [activeFilterTab, setActiveFilterTab] = useState("All");
+
+  const filteredVehicles =
+    activeFilterTab === "All"
+      ? vehicles
+      : vehicles.filter(
+          (vehicle) =>
+            (vehicle.status || "AVAILABLE").toUpperCase() ===
+            activeFilterTab.toUpperCase()
+        );
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -23,7 +37,7 @@ export default function Garage() {
       >
         <View style={styles.headerRow}>
           <Header
-            label="FLEET CONTROL"
+            eyebrow="FLEET CONTROL"
             title="The garage"
           />
 
@@ -52,10 +66,29 @@ export default function Garage() {
         <SearchBar placeholder="Search a vehicle" />
 
         <View style={styles.filters}>
-          <Text style={styles.activeFilter}>All</Text>
-          <Text style={styles.filter}>Available</Text>
-          <Text style={styles.filter}>Reserved</Text>
-          <Text style={styles.filter}>Rented</Text>
+          {FILTERS.map((label) => {
+            const isActive = activeFilterTab === label;
+
+            return (
+              <TouchableOpacity
+                key={label}
+                onPress={() => setActiveFilterTab(label)}
+                style={[
+                  styles.filterChip,
+                  isActive && styles.filterChipActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    isActive && styles.filterTextActive,
+                  ]}
+                >
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <View style={styles.sectionRow}>
@@ -64,11 +97,11 @@ export default function Garage() {
           </Text>
 
           <Text style={styles.count}>
-            {vehicles.length} VEHICLES
+            {filteredVehicles.length} VEHICLES
           </Text>
         </View>
 
-        {vehicles.map((vehicle) => (
+        {filteredVehicles.map((vehicle) => (
           <VehicleCard
             key={vehicle.id}
             vehicle={vehicle}
@@ -96,7 +129,7 @@ const styles = StyleSheet.create({
   },
 
   addButton: {
-    backgroundColor: Colors.lime,
+    backgroundColor: Colors.primary,
     width: 42,
     height: 42,
     borderRadius: 10,
@@ -105,8 +138,11 @@ const styles = StyleSheet.create({
   },
 
   addText: {
-    color: Colors.black,
-    fontSize: 26,
+    color: Colors.background,
+    fontSize: 22,
+    fontWeight: "700",
+    lineHeight: 22,
+    textAlign: "center",
   },
 
   pulse: {
@@ -119,7 +155,7 @@ const styles = StyleSheet.create({
   },
 
   pulseLabel: {
-    color: Colors.lime,
+    color: Colors.primary,
     fontSize: 9,
     fontWeight: "800",
   },
@@ -142,7 +178,7 @@ const styles = StyleSheet.create({
   },
 
   liveText: {
-    color: Colors.lime,
+    color: Colors.primary,
     fontSize: 8,
     fontWeight: "800",
   },
@@ -153,24 +189,27 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
 
-  activeFilter: {
-    backgroundColor: Colors.lime,
-    color: Colors.black,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 8,
-    fontSize: 10,
-    fontWeight: "800",
-  },
-
-  filter: {
-    color: Colors.muted,
+  filterChip: {
     borderWidth: 1,
     borderColor: Colors.border,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 8,
-    fontSize: 10,
+  },
+
+  filterChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+
+  filterText: {
+    color: Colors.muted,
+    fontSize: 11,
+  },
+
+  filterTextActive: {
+    color: Colors.background,
+    fontWeight: "800",
   },
 
   sectionRow: {

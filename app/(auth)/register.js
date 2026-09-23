@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   View,
   Text,
@@ -9,16 +10,10 @@ import { router } from "expo-router";
 import { Colors } from "../../constants/colors";
 
 export default function Register() {
+  const [agreed, setAgreed] = useState(false);
+
   return (
     <View style={styles.container}>
-      <View style={styles.logoRow}>
-        <View style={styles.logo}>
-          <Text style={styles.logoText}>R</Text>
-        </View>
-
-        <Text style={styles.brand}>RentTrack</Text>
-      </View>
-
       <View style={styles.form}>
         <Text style={styles.label}>GET STARTED</Text>
 
@@ -50,20 +45,27 @@ export default function Register() {
           secureTextEntry
         />
 
-        <Text style={styles.terms}>
-          □ I agree to the{" "}
-          <Text style={styles.link}>Terms of Service</Text>
-          {" "}and{" "}
-          <Text style={styles.link}>Privacy Policy.</Text>
-        </Text>
+        <TouchableOpacity
+          style={styles.termsRow}
+          onPress={() => setAgreed((prev) => !prev)}
+        >
+          <View
+            style={[styles.checkbox, agreed && styles.checkboxChecked]}
+          />
+          <Text style={styles.terms}>
+            I agree to the{" "}
+            <Text style={styles.link}>Terms of Service</Text>
+            {" "}and{" "}
+            <Text style={styles.link}>Privacy Policy.</Text>
+          </Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.button}
           onPress={() => router.replace("/(tabs)/garage")}
         >
-          <Text style={styles.buttonText}>
-            Create account   →
-          </Text>
+          <Text style={styles.buttonText}>Create account</Text>
+          <Text style={styles.buttonArrow}>→</Text>
         </TouchableOpacity>
 
         <View style={styles.divider} />
@@ -93,37 +95,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
 
-  logoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  logo: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: Colors.lime,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-  },
-
-  logoText: {
-    fontWeight: "900",
-  },
-
-  brand: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: "800",
-  },
-
   form: {
     marginTop: 155,
   },
 
   label: {
-    color: Colors.lime,
+    color: Colors.primary,
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 1,
@@ -156,31 +133,61 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     paddingHorizontal: 14,
     color: Colors.white,
-    backgroundColor: "#0A1D16",
+    backgroundColor: Colors.surface,
+  },
+
+  termsRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 16,
+  },
+
+  checkbox: {
+    width: 16,
+    height: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 3,
+    backgroundColor: Colors.surface,
+    marginRight: 8,
+    marginTop: 1,
+  },
+
+  checkboxChecked: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
 
   terms: {
     color: Colors.muted,
     fontSize: 10,
-    marginTop: 16,
+    flex: 1,
+    flexWrap: "wrap",
   },
 
   link: {
-    color: Colors.lime,
+    color: Colors.primary,
     fontWeight: "700",
   },
 
   button: {
     height: 50,
-    backgroundColor: Colors.lime,
+    backgroundColor: Colors.primary,
     borderRadius: 9,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
     marginTop: 20,
   },
 
   buttonText: {
-    color: Colors.black,
+    color: Colors.background,
+    fontWeight: "800",
+  },
+
+  buttonArrow: {
+    color: Colors.background,
     fontWeight: "800",
   },
 

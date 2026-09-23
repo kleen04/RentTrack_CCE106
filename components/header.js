@@ -1,13 +1,15 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-export default function Header({ eyebrow, title, subtitle, right }) {
+export default function Header({ eyebrow, label, title, subtitle, right }) {
+  const eyebrowText = eyebrow || label;
+
   return (
     <View style={styles.wrapper}>
       <View style={styles.row}>
         <View style={styles.textContainer}>
-          {eyebrow ? (
-            <Text style={styles.eyebrow}>{eyebrow}</Text>
+          {eyebrowText ? (
+            <Text style={styles.eyebrow}>{eyebrowText}</Text>
           ) : null}
 
           <Text style={styles.title}>{title}</Text>

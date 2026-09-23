@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   View,
   Text,
@@ -9,19 +10,11 @@ import { router } from "expo-router";
 import { Colors } from "../../constants/colors";
 
 export default function SignIn() {
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <View style={styles.container}>
-      <View style={styles.logoRow}>
-        <View style={styles.logo}>
-          <Text style={styles.logoText}>R</Text>
-        </View>
-
-        <View>
-          <Text style={styles.brand}>RentTrack</Text>
-          <Text style={styles.subtitle}>FLEET CONTROL</Text>
-        </View>
-      </View>
-
       <View style={styles.form}>
         <Text style={styles.label}>WELCOME BACK</Text>
 
@@ -42,15 +35,37 @@ export default function SignIn() {
 
         <Text style={styles.inputLabel}>PASSWORD</Text>
 
-        <TextInput
-          placeholder="Enter your password"
-          placeholderTextColor={Colors.muted}
-          style={styles.input}
-          secureTextEntry
-        />
+        <View style={styles.passwordWrapper}>
+          <TextInput
+            placeholder="Enter your password"
+            placeholderTextColor={Colors.muted}
+            style={styles.passwordInput}
+            secureTextEntry={!showPassword}
+          />
+
+          <TouchableOpacity
+            style={styles.showButton}
+            onPress={() => setShowPassword((prev) => !prev)}
+          >
+            <Text style={styles.link}>
+              {showPassword ? "Hide" : "Show"}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.row}>
-          <Text style={styles.remember}>□ Remember me</Text>
+          <TouchableOpacity
+            style={styles.rememberRow}
+            onPress={() => setRememberMe((prev) => !prev)}
+          >
+            <View
+              style={[
+                styles.checkbox,
+                rememberMe && styles.checkboxChecked,
+              ]}
+            />
+            <Text style={styles.remember}>Remember me</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity>
             <Text style={styles.link}>Forgot password?</Text>
@@ -61,7 +76,8 @@ export default function SignIn() {
           style={styles.button}
           onPress={() => router.replace("/(tabs)/garage")}
         >
-          <Text style={styles.buttonText}>Sign in   →</Text>
+          <Text style={styles.buttonText}>Sign in</Text>
+          <Text style={styles.buttonArrow}>→</Text>
         </TouchableOpacity>
 
         <View style={styles.divider} />
@@ -91,47 +107,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
 
-  logoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-  },
-
-  logo: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: Colors.lime,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-
-  logoText: {
-    color: Colors.black,
-    fontWeight: "800",
-    fontSize: 17,
-  },
-
-  brand: {
-    color: Colors.white,
-    fontWeight: "800",
-    fontSize: 16,
-  },
-
-  subtitle: {
-    color: Colors.muted,
-    fontSize: 8,
-    letterSpacing: 1,
-    marginTop: 2,
-  },
-
   form: {
     marginTop: 190,
   },
 
   label: {
-    color: Colors.lime,
+    color: Colors.primary,
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 1,
@@ -164,7 +145,28 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     paddingHorizontal: 14,
     color: Colors.white,
-    backgroundColor: "#0A1D16",
+    backgroundColor: Colors.surface,
+  },
+
+  passwordWrapper: {
+    position: "relative",
+    justifyContent: "center",
+  },
+
+  passwordInput: {
+    height: 50,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 9,
+    paddingHorizontal: 14,
+    paddingRight: 55,
+    color: Colors.white,
+    backgroundColor: Colors.surface,
+  },
+
+  showButton: {
+    position: "absolute",
+    right: 14,
   },
 
   row: {
@@ -174,27 +176,54 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
 
+  rememberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  checkbox: {
+    width: 16,
+    height: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 3,
+    backgroundColor: Colors.surface,
+    marginRight: 8,
+  },
+
+  checkboxChecked: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+
   remember: {
     color: Colors.muted,
     fontSize: 11,
   },
 
   link: {
-    color: Colors.lime,
+    color: Colors.primary,
     fontWeight: "700",
   },
 
   button: {
     height: 50,
     borderRadius: 9,
-    backgroundColor: Colors.lime,
+    backgroundColor: Colors.primary,
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    gap: 8,
     marginTop: 22,
   },
 
   buttonText: {
-    color: Colors.black,
+    color: Colors.background,
+    fontWeight: "800",
+  },
+
+  buttonArrow: {
+    color: Colors.background,
     fontWeight: "800",
   },
 
