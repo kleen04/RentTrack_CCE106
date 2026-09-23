@@ -4,7 +4,7 @@
     "slug": "RentTrack_CCE106",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/LClogo.png",
     "userInterfaceStyle": "dark",
     "scheme": "renttrack",
     "ios": {
@@ -19,7 +19,7 @@
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/LClogo.png"
     },
     "plugins": [
       "expo-router"
