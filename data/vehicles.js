@@ -45,5 +45,6 @@ export const vehicles = [
     name: "Vios",
     price: 3000,
     status: "AVAILABLE",
+    image: require("../assets/vios.jpg"),
   },
 ];
