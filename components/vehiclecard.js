@@ -72,7 +72,9 @@ export default function VehicleCard({
 
       <View style={styles.details}>
         <View style={styles.vehicleInfo}>
-          <Text style={styles.brand}>{brand}</Text>
+          <Text style={styles.brand}>
+            {brand}
+          </Text>
 
           <Text style={styles.name}>
             {name}
