@@ -84,7 +84,7 @@ export default function SignIn() {
 
         <TouchableOpacity
           style={styles.button}
-          onPress={() => router.replace("/(tabs)/garage")}
+          onPress={() => router.replace("/(tabs)")}
         >
           <Text style={styles.buttonText}>Sign in</Text>
           <Text style={styles.buttonArrow}>→</Text>

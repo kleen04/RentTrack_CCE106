@@ -1,120 +1,108 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-} from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
-export default function BookingCard({
-  booking,
-  onCheckout,
-  onDetails,
-}) {
+import { Colors } from "../constants/colors";
+
+export default function BookingCard({ booking }) {
   const {
+    id = "",
     customer = "Customer",
     vehicle = "Vehicle",
     plate = "",
-    period = "",
+    start = "",
+    end = "",
+    total = 0,
     status = "RESERVED",
-    initials = "CU",
   } = booking || {};
 
-  const statusColor =
-    status === "UPCOMING"
-      ? "#F0C94A"
-      : status === "COMPLETED"
-      ? "#6D8178"
-      : "#B8FF2C";
+  const statusStyles = {
+    RESERVED: {
+      border: "#C98A2E",
+      bg: "#2A2008",
+      text: "#F0C94A",
+    },
+    ACTIVE: {
+      border: "#167DA2",
+      bg: "#092A35",
+      text: "#45BDE8",
+    },
+    COMPLETED: {
+      border: Colors.primary,
+      bg: "#132A16",
+      text: Colors.primary,
+    },
+    PENDING: {
+      border: Colors.border,
+      bg: Colors.surface,
+      text: Colors.muted,
+    },
+  };
 
-  const avatarColor =
-    initials === "MR"
-      ? "#6EC4E8"
-      : "#FF7D4D";
+  const statusStyle = statusStyles[status] || statusStyles.RESERVED;
+  const isActive = status === "ACTIVE";
+
+  const handlePress = () => {
+    if (isActive) {
+      router.push("/booking/checkout");
+    } else {
+      router.push(`/booking/${id}`);
+    }
+  };
 
   return (
     <View style={styles.card}>
+      <View style={styles.topRow}>
+        <Text style={styles.id}>{id}</Text>
 
-      <View style={styles.topSection}>
         <View
           style={[
-            styles.avatar,
-            { backgroundColor: avatarColor },
-          ]}
-        >
-          <Text style={styles.avatarText}>
-            {initials}
-          </Text>
-        </View>
-
-        <View style={styles.info}>
-          <Text style={styles.label}>
-            CUSTOMER
-          </Text>
-
-          <Text style={styles.customer}>
-            {customer}
-          </Text>
-
-          <Text style={styles.vehicle}>
-            {vehicle}
-            {plate ? ` / ${plate}` : ""}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.periodContainer}>
-        <Text style={styles.label}>
-          RENTAL PERIOD
-        </Text>
-
-        <Text style={styles.period}>
-          {period}
-        </Text>
-      </View>
-
-      <View
-        style={[
-          styles.statusBadge,
-          {
-            borderColor: statusColor,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.statusText,
+            styles.statusBadge,
             {
-              color: statusColor,
+              borderColor: statusStyle.border,
+              backgroundColor: statusStyle.bg,
             },
           ]}
         >
-          {status}
-        </Text>
+          <Text style={[styles.statusText, { color: statusStyle.text }]}>
+            {status}
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.buttons}>
-        <Pressable
-          onPress={onCheckout}
-          style={({ pressed }) => [
-            styles.checkoutButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={styles.checkoutText}>
-            Check out
+      <Text style={styles.vehicle}>{vehicle}</Text>
+
+      <Text style={styles.subInfo}>
+        {plate} · {customer}
+      </Text>
+
+      <View style={styles.dateBox}>
+        <Ionicons name="calendar-outline" size={18} color={Colors.muted} />
+
+        <View>
+          <Text style={styles.dateMain}>{start}</Text>
+          <Text style={styles.dateSecondary}>to {end}</Text>
+        </View>
+      </View>
+
+      <View style={styles.bottomRow}>
+        <View>
+          <Text style={styles.totalLabel}>TOTAL</Text>
+          <Text style={styles.totalAmount}>
+            ₱{Number(total).toLocaleString()}
           </Text>
-        </Pressable>
+        </View>
 
         <Pressable
-          onPress={onDetails}
+          onPress={handlePress}
           style={({ pressed }) => [
-            styles.detailsButton,
+            styles.actionButton,
             pressed && styles.pressed,
           ]}
         >
-          <Text style={styles.detailsText}>
-            Details
+          <Text style={styles.actionText}>
+            {isActive ? "Checkout" : "View details"}
           </Text>
         </Pressable>
       </View>
@@ -124,140 +112,103 @@ export default function BookingCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#0E281E",
+    backgroundColor: Colors.card,
     borderWidth: 1,
-    borderColor: "#203D31",
-    borderRadius: 12,
-
+    borderColor: Colors.border,
+    borderRadius: 14,
     padding: 16,
-
-    marginBottom: 10,
+    marginBottom: 14,
   },
 
-  topSection: {
+  topRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
 
-  avatar: {
-    width: 40,
-    height: 40,
-
-    borderRadius: 10,
-
-    alignItems: "center",
-    justifyContent: "center",
-
-    marginRight: 12,
-  },
-
-  avatarText: {
-    color: "#07130F",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-
-  info: {
-    flex: 1,
-  },
-
-  label: {
-    color: "#718078",
-    fontSize: 9,
-    fontWeight: "600",
-    letterSpacing: 1,
-
-    marginBottom: 4,
-  },
-
-  customer: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "600",
-
-    marginBottom: 4,
-  },
-
-  vehicle: {
-    color: "#789087",
+  id: {
+    color: Colors.muted,
     fontSize: 11,
-  },
-
-  periodContainer: {
-    marginTop: 14,
-  },
-
-  period: {
-    color: "#D2DDD8",
-    fontSize: 12,
-
-    marginTop: 3,
+    letterSpacing: 0.5,
   },
 
   statusBadge: {
-    alignSelf: "flex-start",
-
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-
     borderWidth: 1,
-    borderRadius: 5,
-
-    marginTop: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
 
   statusText: {
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: "800",
   },
 
-  buttons: {
-    flexDirection: "row",
-
-    gap: 7,
-
-    marginTop: 12,
-  },
-
-  checkoutButton: {
-    flex: 1,
-
-    height: 40,
-
-    borderRadius: 9,
-
-    backgroundColor: "#B8FF2C",
-
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  checkoutText: {
-    color: "#07130F",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-
-  detailsButton: {
-    flex: 1,
-
-    height: 40,
-
-    borderRadius: 9,
-
-    borderWidth: 1,
-    borderColor: "#29453A",
-
-    backgroundColor: "#0A1B14",
-
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  detailsText: {
-    color: "#FFFFFF",
-    fontSize: 11,
+  vehicle: {
+    color: Colors.white,
+    fontSize: 19,
     fontWeight: "600",
+    marginTop: 14,
+  },
+
+  subInfo: {
+    color: Colors.muted,
+    fontSize: 12,
+    marginTop: 4,
+  },
+
+  dateBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#081A13",
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 16,
+  },
+
+  dateMain: {
+    color: "#8BABA0",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  dateSecondary: {
+    color: "#536D63",
+    fontSize: 11,
+    marginTop: 2,
+  },
+
+  bottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginTop: 16,
+  },
+
+  totalLabel: {
+    color: Colors.muted,
+    fontSize: 9,
+    marginBottom: 3,
+  },
+
+  totalAmount: {
+    color: Colors.primary,
+    fontSize: 20,
+    fontWeight: "800",
+  },
+
+  actionButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+
+  actionText: {
+    color: Colors.background,
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   pressed: {

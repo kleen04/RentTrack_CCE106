@@ -20,6 +20,10 @@ export default function VehicleDetails() {
   if (!vehicle) {
     return (
       <View style={styles.container}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.back}>← Back</Text>
+        </TouchableOpacity>
+
         <Text style={styles.text}>
           Vehicle not found
         </Text>
@@ -69,12 +73,12 @@ const styles = StyleSheet.create({
   },
 
   back: {
-    color: Colors.lime,
+    color: Colors.primary,
     marginBottom: 40,
   },
 
   label: {
-    color: Colors.lime,
+    color: Colors.primary,
     fontSize: 10,
     fontWeight: "800",
   },
@@ -107,14 +111,14 @@ const styles = StyleSheet.create({
   },
 
   price: {
-    color: Colors.lime,
+    color: Colors.primary,
     fontSize: 20,
     fontWeight: "900",
     marginTop: 20,
   },
 
   status: {
-    color: Colors.lime,
+    color: Colors.primary,
     marginTop: 20,
   },
 

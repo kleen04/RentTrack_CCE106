@@ -1,126 +1,47 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from "react-native";
-
 import { Colors } from "../../constants/colors";
-
-const TAB_DATA = [
-  {
-    name: "garage",
-    label: "Garage",
-    icon: "car-outline",
-  },
-  {
-    name: "bookings",
-    label: "Bookings",
-    icon: "calendar-outline",
-  },
-  {
-    name: "scan",
-    label: "Scan",
-    icon: "scan-outline",
-  },
-  {
-    name: "customers",
-    label: "Customers",
-    icon: "people-outline",
-  },
-  {
-    name: "reports",
-    label: "Reports",
-    icon: "bar-chart-outline",
-  },
-];
-
-function CustomTabBar({ state, descriptors, navigation }) {
-  return (
-    <View style={styles.navbar}>
-      {state.routes.map((route, index) => {
-        const isFocused = state.index === index;
-
-        const { options } = descriptors[route.key];
-
-        const label =
-          options.tabBarLabel !== undefined
-            ? options.tabBarLabel
-            : options.title !== undefined
-            ? options.title
-            : route.name;
-
-        const tabInfo = TAB_DATA.find(
-          (tab) => tab.name === route.name
-        );
-
-        const iconName = tabInfo
-          ? tabInfo.icon
-          : "ellipse-outline";
-
-        const onPress = () => {
-          const event = navigation.emit({
-            type: "tabPress",
-            target: route.key,
-            canPreventDefault: true,
-          });
-
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
-          }
-        };
-
-        return (
-          <TouchableOpacity
-            key={route.key}
-            activeOpacity={0.8}
-            onPress={onPress}
-            style={[
-              styles.tab,
-              isFocused && styles.activeTab,
-            ]}
-          >
-            <Ionicons
-              name={iconName}
-              size={21}
-              color={
-                isFocused
-                  ? Colors.primary
-                  : Colors.muted
-              }
-            />
-
-            <Text
-              style={[
-                styles.tabText,
-                isFocused && styles.activeText,
-              ]}
-            >
-              {label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
 
 export default function TabsLayout() {
   return (
     <Tabs
-      tabBar={(props) => (
-        <CustomTabBar {...props} />
-      )}
       screenOptions={{
         headerShown: false,
+
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: "#53665E",
+
+        tabBarStyle: {
+          backgroundColor: "#06130E",
+          borderTopColor: "#20362D",
+          height: 72,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+
+        tabBarLabelStyle: {
+          fontSize: 9,
+          fontWeight: "600",
+        },
       }}
     >
       <Tabs.Screen
+        name="index"
+        options={{
+          title: "Overview",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="grid-outline" color={color} size={size} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
         name="garage"
         options={{
-          title: "Garage",
+          title: "Fleet",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="car-outline" color={color} size={size} />
+          ),
         }}
       />
 
@@ -128,13 +49,9 @@ export default function TabsLayout() {
         name="bookings"
         options={{
           title: "Bookings",
-        }}
-      />
-
-      <Tabs.Screen
-        name="scan"
-        options={{
-          title: "Scan",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" color={color} size={size} />
+          ),
         }}
       />
 
@@ -142,6 +59,19 @@ export default function TabsLayout() {
         name="customers"
         options={{
           title: "Customers",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" color={color} size={size} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="payment"
+        options={{
+          title: "Payments",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="card-outline" color={color} size={size} />
+          ),
         }}
       />
 
@@ -149,59 +79,18 @@ export default function TabsLayout() {
         name="reports"
         options={{
           title: "Reports",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="bar-chart-outline" color={color} size={size} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="scan"
+        options={{
+          href: null,
         }}
       />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  navbar: {
-    height: 72,
-
-    backgroundColor: "#071711",
-
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-
-    paddingHorizontal: 8,
-    paddingTop: 6,
-    paddingBottom: 6,
-  },
-
-  tab: {
-    width: 68,
-    height: 54,
-
-    borderRadius: 10,
-
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  activeTab: {
-    backgroundColor: "#0D2A20",
-  },
-
-  tabText: {
-    color: Colors.muted,
-
-    fontSize: 9,
-
-    fontWeight: "600",
-
-    marginTop: 4,
-
-    textAlign: "center",
-  },
-
-  activeText: {
-    color: Colors.primary,
-
-    fontWeight: "700",
-  },
-});
