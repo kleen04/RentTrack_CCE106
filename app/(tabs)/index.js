@@ -18,24 +18,16 @@ export default function Overview() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        
         <View style={styles.header}>
-          <View>
-            <Text style={styles.date}>WEDNESDAY, SEP 18</Text>
+          <Text style={styles.date}>WEDNESDAY, SEP 18</Text>
 
-            <Text style={styles.title}>Fleet overview</Text>
+          <Text style={styles.title}>Fleet overview</Text>
 
-            <Text style={styles.subtitle}>
-              Here's what's happening today.
-            </Text>
-          </View>
-
-          <TouchableOpacity style={styles.profileButton}>
-            <Text style={styles.profileText}>JL</Text>
-          </TouchableOpacity>
+          <Text style={styles.subtitle}>
+            Here's what's happening today.
+          </Text>
         </View>
 
-        
         <View style={styles.revenueCard}>
           <Text style={styles.revenueLabel}>
             NET REVENUE • SEPTEMBER
@@ -49,7 +41,6 @@ export default function Overview() {
             ↗ 12.4% from last month
           </Text>
 
-        
           <View style={styles.chart}>
             <View style={[styles.bar, { height: 12 }]} />
             <View style={[styles.bar, { height: 26 }]} />
@@ -64,7 +55,6 @@ export default function Overview() {
           </View>
         </View>
 
-        
         <View style={styles.statsGrid}>
           <StatCard
             icon="car-outline"
@@ -95,7 +85,6 @@ export default function Overview() {
           />
         </View>
 
-        
         <View style={styles.sectionHeader}>
           <View>
             <Text style={styles.sectionLabel}>
@@ -114,7 +103,6 @@ export default function Overview() {
           </TouchableOpacity>
         </View>
 
-        
         <View style={styles.rentalCard}>
           <View style={styles.rentalTop}>
             <Text style={styles.rentalId}>
@@ -178,7 +166,6 @@ export default function Overview() {
           </View>
         </View>
 
-        
         <View style={styles.quickActions}>
           <QuickAction
             icon="add"
@@ -205,63 +192,35 @@ export default function Overview() {
   );
 }
 
-
-function StatCard({
-  icon,
-  label,
-  value,
-  subtext,
-}) {
+function StatCard({ icon, label, value, subtext }) {
   return (
     <View style={styles.statCard}>
       <View style={styles.iconBox}>
-        <Ionicons
-          name={icon}
-          size={20}
-          color={Colors.primary}
-        />
+        <Ionicons name={icon} size={20} color={Colors.primary} />
       </View>
 
-      <Text style={styles.statLabel}>
-        {label}
-      </Text>
+      <Text style={styles.statLabel}>{label}</Text>
 
-      <Text style={styles.statValue}>
-        {value}
-      </Text>
+      <Text style={styles.statValue}>{value}</Text>
 
-      <Text style={styles.statSubtext}>
-        {subtext}
-      </Text>
+      <Text style={styles.statSubtext}>{subtext}</Text>
     </View>
   );
 }
 
-
-function QuickAction({
-  icon,
-  label,
-  onPress,
-}) {
+function QuickAction({ icon, label, onPress }) {
   return (
     <TouchableOpacity
       style={styles.quickAction}
       onPress={onPress}
       activeOpacity={0.8}
     >
-      <Ionicons
-        name={icon}
-        size={23}
-        color={Colors.primary}
-      />
+      <Ionicons name={icon} size={23} color={Colors.primary} />
 
-      <Text style={styles.quickActionText}>
-        {label}
-      </Text>
+      <Text style={styles.quickActionText}>{label}</Text>
     </TouchableOpacity>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -275,11 +234,7 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
 
-
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
     marginBottom: 26,
   },
 
@@ -302,22 +257,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 5,
   },
-
-  profileButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  profileText: {
-    color: "#000000",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-
 
   revenueCard: {
     backgroundColor: Colors.primary,
@@ -365,7 +304,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
 
-
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -412,7 +350,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-
   sectionHeader: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -441,7 +378,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
     marginBottom: 2,
   },
-
 
   rentalCard: {
     backgroundColor: Colors.card,
@@ -541,6 +477,7 @@ const styles = StyleSheet.create({
     color: "#000000",
     fontSize: 10,
     fontWeight: "800",
+    textAlign: "center",
   },
 
   quickActions: {
@@ -564,5 +501,6 @@ const styles = StyleSheet.create({
     color: "#9AADA5",
     fontSize: 8,
     marginTop: 8,
+    textAlign: "center",
   },
 });

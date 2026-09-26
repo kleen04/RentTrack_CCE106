@@ -142,6 +142,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 9,
     fontWeight: "800",
+    textAlign: "center",
   },
 
   vehicle: {
@@ -209,6 +210,7 @@ const styles = StyleSheet.create({
     color: Colors.background,
     fontSize: 12,
     fontWeight: "700",
+    textAlign: "center",
   },
 
   pressed: {

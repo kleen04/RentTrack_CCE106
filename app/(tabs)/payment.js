@@ -198,5 +198,6 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 8,
     fontWeight: "800",
+    textAlign: "center",
   },
 });

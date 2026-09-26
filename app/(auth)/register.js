@@ -62,7 +62,7 @@ export default function Register() {
 
         <TouchableOpacity
           style={styles.button}
-          onPress={() => router.replace("/(tabs)/garage")}
+          onPress={() => router.replace("/(tabs)")}
         >
           <Text style={styles.buttonText}>Create account</Text>
           <Text style={styles.buttonArrow}>→</Text>
@@ -184,11 +184,13 @@ const styles = StyleSheet.create({
   buttonText: {
     color: Colors.background,
     fontWeight: "800",
+    textAlign: "center",
   },
 
   buttonArrow: {
     color: Colors.background,
     fontWeight: "800",
+    textAlign: "center",
   },
 
   divider: {

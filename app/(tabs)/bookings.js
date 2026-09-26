@@ -181,6 +181,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 28,
     fontWeight: "800",
+    textAlign: "center",
   },
 
   label: {
@@ -188,6 +189,7 @@ const styles = StyleSheet.create({
     fontSize: 8,
     letterSpacing: 1,
     marginTop: 3,
+    textAlign: "center",
   },
 
   line: {
@@ -225,12 +227,14 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     fontSize: 10,
     fontWeight: "500",
+    textAlign: "center",
   },
 
   filterTextActive: {
     color: Colors.background,
     fontSize: 10,
     fontWeight: "800",
+    textAlign: "center",
   },
 
   empty: {

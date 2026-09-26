@@ -164,6 +164,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 12,
     fontWeight: "600",
+    textAlign: "center",
   },
 
   exportButton: {
@@ -179,6 +180,7 @@ const styles = StyleSheet.create({
     color: Colors.background,
     fontSize: 12,
     fontWeight: "800",
+    textAlign: "center",
   },
 
   revenueCard: {
@@ -235,6 +237,7 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     fontSize: 8,
     marginTop: 8,
+    textAlign: "center",
   },
 
   statsGrid: {

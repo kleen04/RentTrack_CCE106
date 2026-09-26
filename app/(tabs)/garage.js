@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import {
   View,
   Text,
@@ -6,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
+
 import { router } from "expo-router";
 
 import Header from "../../components/header";
@@ -15,16 +17,10 @@ import VehicleCard from "../../components/vehiclecard";
 import { vehicles } from "../../data/vehicles";
 import { Colors } from "../../constants/colors";
 
-const FILTERS = [
-  "All",
-  "Available",
-  "Reserved",
-  "Rented",
-];
+const FILTERS = ["All", "Available", "Reserved", "Rented"];
 
 export default function Garage() {
-  const [activeFilterTab, setActiveFilterTab] =
-    useState("All");
+  const [activeFilterTab, setActiveFilterTab] = useState("All");
 
   const filteredVehicles =
     activeFilterTab === "All"
@@ -41,6 +37,7 @@ export default function Garage() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
+        
         <View style={styles.headerRow}>
           <Header
             eyebrow="FLEET CONTROL"
@@ -48,7 +45,6 @@ export default function Garage() {
           />
 
           <TouchableOpacity
-            activeOpacity={0.8}
             style={styles.addButton}
             onPress={() => router.push("/vehicle/add")}
           >
@@ -56,51 +52,44 @@ export default function Garage() {
           </TouchableOpacity>
         </View>
 
+        
         <View style={styles.pulse}>
-          <View>
-            <Text style={styles.pulseLabel}>
-              FLEET PULSE
-            </Text>
+          <Text style={styles.pulseLabel}>
+            FLEET PULSE
+          </Text>
 
-            <Text style={styles.pulseText}>
-              5 ready · 1 out
-            </Text>
-          </View>
+          <Text style={styles.pulseText}>
+            5 ready · 1 out
+          </Text>
 
           <View style={styles.live}>
             <Text style={styles.liveText}>
-              • LIVE
+              ● LIVE
             </Text>
           </View>
         </View>
 
-        <View style={styles.searchWrapper}>
-          <SearchBar placeholder="Search a vehicle" />
-        </View>
+        
+        <SearchBar placeholder="Search a vehicle" />
 
+        
         <View style={styles.filters}>
           {FILTERS.map((label) => {
-            const isActive =
-              activeFilterTab === label;
+            const isActive = activeFilterTab === label;
 
             return (
               <TouchableOpacity
                 key={label}
-                activeOpacity={0.8}
-                onPress={() =>
-                  setActiveFilterTab(label)
-                }
+                onPress={() => setActiveFilterTab(label)}
                 style={[
                   styles.filterChip,
-                  isActive &&
-                    styles.filterChipActive,
+                  isActive && styles.filterChipActive,
                 ]}
               >
                 <Text
                   style={[
                     styles.filterText,
-                    isActive &&
-                      styles.filterTextActive,
+                    isActive && styles.filterTextActive,
                   ]}
                 >
                   {label}
@@ -110,6 +99,7 @@ export default function Garage() {
           })}
         </View>
 
+        
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>
             FLEET INVENTORY
@@ -138,180 +128,122 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    paddingHorizontal: 14,
-    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 30,
   },
 
-
   headerRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 10,
+    alignItems: "flex-start",
+    marginBottom: 14,
   },
 
   addButton: {
+    backgroundColor: Colors.primary,
     width: 42,
     height: 42,
-
-    backgroundColor: Colors.primary,
-
     borderRadius: 10,
-
-    alignItems: "center",
     justifyContent: "center",
-
-    marginTop: 0,
+    alignItems: "center",
   },
 
   addText: {
     color: Colors.background,
-    fontSize: 23,
+    fontSize: 22,
     fontWeight: "700",
-    lineHeight: 25,
+    lineHeight: 22,
     textAlign: "center",
   },
 
-
   pulse: {
-    height: 74,
-
     backgroundColor: Colors.card,
-
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.border,
-
-    borderRadius: 12,
-
-    paddingHorizontal: 16,
-
-    justifyContent: "center",
-
+    padding: 16,
     marginBottom: 14,
   },
 
   pulseLabel: {
     color: Colors.primary,
-
     fontSize: 9,
     fontWeight: "800",
-
-    letterSpacing: 0.4,
-
-    marginBottom: 6,
   },
 
   pulseText: {
     color: Colors.white,
-
     fontSize: 17,
     fontWeight: "800",
-
-    lineHeight: 20,
+    marginTop: 6,
   },
 
   live: {
     position: "absolute",
-
-    right: 17,
+    right: 16,
     top: 22,
-
     backgroundColor: "#183622",
-
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
     paddingVertical: 5,
-
     borderRadius: 6,
   },
 
   liveText: {
     color: Colors.primary,
-
     fontSize: 8,
     fontWeight: "800",
-
-    letterSpacing: 0.2,
   },
-
-
-  searchWrapper: {
-    marginBottom: 8,
-  },
-
 
   filters: {
     flexDirection: "row",
-    alignItems: "center",
-
     gap: 8,
-
-    marginTop: 0,
+    marginTop: 8,
     marginBottom: 28,
+    flexWrap: "wrap",
   },
 
   filterChip: {
-    height: 34,
-
-    paddingHorizontal: 13,
-
     borderWidth: 1,
     borderColor: Colors.border,
-
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 8,
-
-    alignItems: "center",
-    justifyContent: "center",
   },
 
   filterChipActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
-
-    paddingHorizontal: 14,
   },
 
   filterText: {
     color: Colors.muted,
-
-    fontSize: 10,
-
-    fontWeight: "500",
+    fontSize: 11,
+    textAlign: "center",
   },
 
   filterTextActive: {
     color: Colors.background,
-
-    fontSize: 10,
-
     fontWeight: "800",
+    textAlign: "center",
   },
-
 
   sectionRow: {
     flexDirection: "row",
-
-    alignItems: "center",
     justifyContent: "space-between",
-
+    alignItems: "center",
     marginBottom: 12,
   },
 
   sectionTitle: {
     color: "#B9C8C1",
-
     fontSize: 10,
-
     fontWeight: "700",
-
     letterSpacing: 1,
   },
 
   count: {
     color: Colors.muted,
-
     fontSize: 9,
-
-    letterSpacing: 0.3,
   },
 });

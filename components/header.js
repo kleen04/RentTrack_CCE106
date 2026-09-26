@@ -1,17 +1,7 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-} from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 
-export default function Header({
-  eyebrow,
-  label,
-  title,
-  subtitle,
-  right,
-}) {
+export default function Header({ eyebrow, label, title, subtitle, right }) {
   const eyebrowText = eyebrow || label;
 
   return (
@@ -19,25 +9,17 @@ export default function Header({
       <View style={styles.row}>
         <View style={styles.textContainer}>
           {eyebrowText ? (
-            <Text style={styles.eyebrow}>
-              {eyebrowText}
-            </Text>
+            <Text style={styles.eyebrow}>{eyebrowText}</Text>
           ) : null}
 
-          <Text style={styles.title}>
-            {title}
-          </Text>
+          <Text style={styles.title}>{title}</Text>
 
           {subtitle ? (
-            <Text style={styles.subtitle}>
-              {subtitle}
-            </Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
           ) : null}
         </View>
 
-        {right ? (
-          <View>{right}</View>
-        ) : null}
+        {right ? <View>{right}</View> : null}
       </View>
     </View>
   );
@@ -45,7 +27,7 @@ export default function Header({
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginBottom: 0,
+    marginBottom: 20,
   },
 
   row: {
@@ -63,7 +45,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1.5,
-
     marginBottom: 5,
   },
 
@@ -71,14 +52,11 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 30,
     fontWeight: "400",
-
-    lineHeight: 34,
   },
 
   subtitle: {
     color: "#7D9086",
     fontSize: 14,
-
     marginTop: 6,
     lineHeight: 20,
   },

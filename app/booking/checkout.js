@@ -13,21 +13,9 @@ import { router } from "expo-router";
 import { Colors } from "../../constants/colors";
 
 const PAYMENT_METHODS = [
-  {
-    id: "cash",
-    label: "Cash",
-    subtext: "Pay at counter",
-  },
-  {
-    id: "gcash",
-    label: "GCash",
-    subtext: "Mobile wallet",
-  },
-  {
-    id: "card",
-    label: "Card",
-    subtext: "•••• 4242",
-  },
+  { id: "cash", label: "Cash", subtext: "Pay at counter" },
+  { id: "gcash", label: "GCash", subtext: "Mobile wallet" },
+  { id: "card", label: "Card", subtext: "•••• 4242" },
 ];
 
 export default function Checkout() {
@@ -81,7 +69,6 @@ export default function Checkout() {
         </View>
       </View>
 
-      {/* PROTOTYPE NOTICE */}
       <View style={styles.notice}>
         <Ionicons
           name="shield-checkmark-outline"
@@ -97,7 +84,6 @@ export default function Checkout() {
         </View>
       </View>
 
-      {/* RENTAL INFO */}
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>RENTAL INFORMATION</Text>
 
@@ -126,7 +112,6 @@ export default function Checkout() {
         </View>
       </View>
 
-      {/* PRICE BREAKDOWN */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Price breakdown</Text>
 
@@ -161,7 +146,6 @@ export default function Checkout() {
         </View>
       </View>
 
-      {/* PAYMENT METHOD */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Payment method</Text>
 
@@ -464,5 +448,6 @@ const styles = StyleSheet.create({
     color: Colors.background,
     fontWeight: "800",
     fontSize: 14,
+    textAlign: "center",
   },
 });

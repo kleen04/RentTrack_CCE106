@@ -187,6 +187,9 @@ const styles = StyleSheet.create({
   showButton: {
     position: "absolute",
     right: 14,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
   },
 
   row: {
@@ -240,11 +243,13 @@ const styles = StyleSheet.create({
   buttonText: {
     color: Colors.background,
     fontWeight: "800",
+    textAlign: "center",
   },
 
   buttonArrow: {
     color: Colors.background,
     fontWeight: "800",
+    textAlign: "center",
   },
 
   divider: {
