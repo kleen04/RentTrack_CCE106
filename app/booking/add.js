@@ -16,13 +16,16 @@ import {
   getCustomers,
   getVehiclesAvailableForRange,
 } from "../../services/database";
-import { calculateRentalQuote, DISTANCE_RATE_PER_KM } from "../../services/pricing";
+import { DISTANCE_RATE_PER_KM } from "../../services/pricing";
 
 const BOOKING_CHANNELS = [
   { value: "FACEBOOK", label: "Facebook" },
   { value: "PHONE_MESSENGER", label: "Phone / Messenger" },
   { value: "WALK_IN", label: "Walk-in" },
 ];
+
+const DAY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 10, 14, 21, 30];
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function dateInputValue(date) {
   const year = date.getFullYear();
@@ -38,6 +41,18 @@ function parseDate(value) {
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
     ? date
     : null;
+}
+
+function addDays(date, days) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function cleanDecimal(text) {
+  const withDot = text.replace(",", ".").replace(/[^0-9.]/g, "");
+  const parts = withDot.split(".");
+  return parts.length > 1 ? `${parts[0]}.${parts.slice(1).join("")}` : withDot;
 }
 
 export default function AddBooking() {
@@ -60,6 +75,7 @@ export default function AddBooking() {
   const [destinationKm, setDestinationKm] = useState("");
   const [bookingChannel, setBookingChannel] = useState("WALK_IN");
   const [isSaving, setIsSaving] = useState(false);
+  const [showDaysMenu, setShowDaysMenu] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [availabilityError, setAvailabilityError] = useState("");
   const [loadedAvailabilityRange, setLoadedAvailabilityRange] = useState("");
@@ -101,6 +117,7 @@ export default function AddBooking() {
     return date;
   });
   const validDateRange = Boolean(pickup && returnAt && returnAt > pickup && pickup >= today);
+
   useEffect(() => {
     let isActive = true;
     const rangePickup = parseDate(pickupDate);
@@ -114,11 +131,7 @@ export default function AddBooking() {
     const loadAvailability = async () => {
       setAvailabilityError("");
       try {
-        const rows = await getVehiclesAvailableForRange(
-          db,
-          rangePickup,
-          rangeReturn
-        );
+        const rows = await getVehiclesAvailableForRange(db, rangePickup, rangeReturn);
         if (!isActive) return;
         setAvailableVehicles(rows);
         setLoadedAvailabilityRange(rangeKey);
@@ -132,9 +145,7 @@ export default function AddBooking() {
         setAvailableVehicles([]);
         setLoadedAvailabilityRange(rangeKey);
         setVehicleId(null);
-        setAvailabilityError(
-          error?.message || "Vehicle availability could not be checked."
-        );
+        setAvailabilityError(error?.message || "Vehicle availability could not be checked.");
       }
     };
     const subscription = addDatabaseChangeListener((event) => {
@@ -149,26 +160,32 @@ export default function AddBooking() {
     };
   }, [db, pickupDate, returnDate, rangeKey, today]);
 
-  const rangeVehicles =
-    loadedAvailabilityRange === rangeKey ? availableVehicles : [];
-  const availabilityLoading =
-    validDateRange && loadedAvailabilityRange !== rangeKey;
+  const rangeVehicles = loadedAvailabilityRange === rangeKey ? availableVehicles : [];
+  const availabilityLoading = validDateRange && loadedAvailabilityRange !== rangeKey;
   const selectedVehicle = rangeVehicles.find((vehicle) => vehicle.id === vehicleId);
   const rentalDays =
     pickup && returnAt && returnAt > pickup
-      ? Math.ceil((returnAt - pickup) / (24 * 60 * 60 * 1000))
+      ? Math.ceil((returnAt - pickup) / DAY_MS)
       : 0;
-  const km = Number(destinationKm);
+
+  // Quote is computed here so it always updates
+  const ratePerKm = Number(DISTANCE_RATE_PER_KM) || 0;
+  const km = parseFloat(destinationKm);
   const validKm = Number.isFinite(km) && km > 0;
-  const quote = selectedVehicle
-    ? calculateRentalQuote(
-        selectedVehicle.price,
-        rentalDays,
-        validKm ? km : 0,
-        DISTANCE_RATE_PER_KM
-      )
-    : { baseAmount: 0, distanceAmount: 0, totalAmount: 0 };
-  const { baseAmount, distanceAmount, totalAmount } = quote;
+  const dailyPrice = selectedVehicle ? Number(selectedVehicle.price) || 0 : 0;
+  const baseAmount = dailyPrice * rentalDays;
+  const distanceAmount = validKm ? Math.round(km * ratePerKm * 100) / 100 : 0;
+  const totalAmount = baseAmount + distanceAmount;
+
+  const selectDays = (days) => {
+    const start = pickup || parseDate(pickupDate);
+    if (!start) {
+      Alert.alert("Pickup date required", "Enter a valid pickup date first.");
+      return;
+    }
+    setReturnDate(dateInputValue(addDays(start, days)));
+    setShowDaysMenu(false);
+  };
 
   const returnToBookings = () => {
     if (router.canGoBack()) router.back();
@@ -181,12 +198,7 @@ export default function AddBooking() {
       Alert.alert("Choose available options", "Select a customer and a vehicle available for the selected dates.");
       return;
     }
-    if (
-      !pickup ||
-      !returnAt ||
-      !rentalDays ||
-      pickup < new Date(new Date().setHours(0, 0, 0, 0))
-    ) {
+    if (!pickup || !returnAt || !rentalDays || pickup < today) {
       Alert.alert("Check rental dates", "Use valid YYYY-MM-DD dates, choose a future pickup, and make sure return is after pickup.");
       return;
     }
@@ -194,7 +206,7 @@ export default function AddBooking() {
       Alert.alert("Destination required", "Enter the destination for this rental.");
       return;
     }
-    if (!validKm || !destinationKm.trim()) {
+    if (!validKm) {
       Alert.alert("Distance required", "Enter the one-way distance to the destination in kilometers.");
       return;
     }
@@ -208,7 +220,7 @@ export default function AddBooking() {
         returnAt,
         destination: destination.trim(),
         destinationKm: km,
-        distanceRatePerKm: DISTANCE_RATE_PER_KM,
+        distanceRatePerKm: ratePerKm,
         bookingChannel,
         totalAmount,
         status: "RESERVED",
@@ -231,7 +243,11 @@ export default function AddBooking() {
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+      >
         <TouchableOpacity onPress={returnToBookings} style={styles.backButton}>
           <Text style={styles.back}>← Back to bookings</Text>
         </TouchableOpacity>
@@ -240,6 +256,11 @@ export default function AddBooking() {
 
         {loadError ? <Text style={styles.error}>{loadError}</Text> : null}
         {availabilityError ? <Text style={styles.error}>{availabilityError}</Text> : null}
+        {ratePerKm <= 0 ? (
+          <Text style={styles.error}>
+            Distance rate is 0. Set DISTANCE_RATE_PER_KM in services/pricing.js.
+          </Text>
+        ) : null}
 
         <Text style={styles.fieldLabel}>CUSTOMER</Text>
         {customers.length ? (
@@ -265,15 +286,9 @@ export default function AddBooking() {
             <TouchableOpacity
               key={channel.value}
               onPress={() => setBookingChannel(channel.value)}
-              style={[
-                styles.option,
-                bookingChannel === channel.value && styles.optionActive,
-              ]}
+              style={[styles.option, bookingChannel === channel.value && styles.optionActive]}
             >
-              <Text style={[
-                styles.optionText,
-                bookingChannel === channel.value && styles.optionTextActive,
-              ]}>
+              <Text style={[styles.optionText, bookingChannel === channel.value && styles.optionTextActive]}>
                 {channel.label}
               </Text>
             </TouchableOpacity>
@@ -343,7 +358,7 @@ export default function AddBooking() {
         <Text style={styles.fieldLabel}>ONE-WAY DISTANCE FROM RENTTRACK (KM)</Text>
         <TextInput
           value={destinationKm}
-          onChangeText={setDestinationKm}
+          onChangeText={(text) => setDestinationKm(cleanDecimal(text))}
           placeholder="e.g. 65"
           placeholderTextColor={Colors.muted}
           style={styles.input}
@@ -353,12 +368,39 @@ export default function AddBooking() {
 
         <View style={styles.quoteCard}>
           <Text style={styles.quoteTitle}>ESTIMATED RENTAL TOTAL</Text>
+
+          <Text style={styles.quoteFieldLabel}>RENTAL DAYS</Text>
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() => setShowDaysMenu((open) => !open)}
+          >
+            <Text style={styles.dropdownText}>
+              {rentalDays ? `${rentalDays} day(s)` : "Select days"}
+            </Text>
+            <Text style={styles.dropdownText}>{showDaysMenu ? "▲" : "▼"}</Text>
+          </TouchableOpacity>
+          {showDaysMenu && (
+            <View style={styles.dropdownMenu}>
+              {DAY_OPTIONS.map((days) => (
+                <TouchableOpacity
+                  key={days}
+                  style={[styles.dropdownItem, days === rentalDays && styles.dropdownItemActive]}
+                  onPress={() => selectDays(days)}
+                >
+                  <Text style={[styles.dropdownText, days === rentalDays && styles.optionTextActive]}>
+                    {days} day(s)
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           <View style={styles.quoteLine}>
             <Text style={styles.quoteText}>Vehicle · {rentalDays || 0} day(s)</Text>
             <Text style={styles.quoteText}>₱{baseAmount.toLocaleString()}</Text>
           </View>
           <View style={styles.quoteLine}>
-            <Text style={styles.quoteText}>Distance · {validKm ? km : 0} km × ₱{DISTANCE_RATE_PER_KM}</Text>
+            <Text style={styles.quoteText}>Distance · {validKm ? km : 0} km × ₱{ratePerKm}</Text>
             <Text style={styles.quoteText}>₱{distanceAmount.toLocaleString()}</Text>
           </View>
           <View style={styles.quoteDivider} />
@@ -366,7 +408,7 @@ export default function AddBooking() {
             <Text style={styles.totalLabel}>Estimated total</Text>
             <Text style={styles.totalValue}>₱{totalAmount.toLocaleString()}</Text>
           </View>
-          <Text style={styles.formula}>Daily rate × rental days + destination km × ₱{DISTANCE_RATE_PER_KM}/km</Text>
+          <Text style={styles.formula}>Daily rate × rental days + destination km × ₱{ratePerKm}/km</Text>
         </View>
 
         <TouchableOpacity
@@ -389,6 +431,7 @@ const styles = StyleSheet.create({
   label: { color: Colors.primary, fontSize: 9, fontWeight: "800", letterSpacing: 0.7 },
   title: { color: Colors.white, fontSize: 27, fontWeight: "800", marginTop: 7, marginBottom: 21 },
   fieldLabel: { color: "#B9C8C1", fontSize: 9, fontWeight: "800", letterSpacing: 0.5, marginTop: 15, marginBottom: 8 },
+  quoteFieldLabel: { color: "#B9C8C1", fontSize: 9, fontWeight: "800", letterSpacing: 0.5, marginBottom: 8 },
   optionRow: { gap: 7 },
   option: { borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.card, borderRadius: 8, paddingHorizontal: 11, paddingVertical: 9 },
   optionActive: { backgroundColor: "#182D1E", borderColor: Colors.primary },
@@ -415,6 +458,11 @@ const styles = StyleSheet.create({
   totalLabel: { color: Colors.white, fontSize: 11, fontWeight: "700" },
   totalValue: { color: Colors.primary, fontSize: 18, fontWeight: "900" },
   formula: { color: Colors.muted, fontSize: 8, lineHeight: 13, marginTop: 10 },
+  dropdown: { height: 44, flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border, borderRadius: 9, paddingHorizontal: 13, marginBottom: 12 },
+  dropdownText: { color: Colors.white, fontSize: 11 },
+  dropdownMenu: { backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border, borderRadius: 9, marginBottom: 12, overflow: "hidden" },
+  dropdownItem: { paddingHorizontal: 13, paddingVertical: 11 },
+  dropdownItemActive: { backgroundColor: "#182D1E" },
   button: { height: 51, backgroundColor: Colors.primary, borderRadius: 9, justifyContent: "center", alignItems: "center", marginTop: 17 },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: Colors.background, fontSize: 12, fontWeight: "900" },
