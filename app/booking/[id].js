@@ -10,10 +10,11 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { addDatabaseChangeListener, useSQLiteContext } from "expo-sqlite";
 
 import { Colors } from "../../constants/colors";
+import { useAuth } from "../../context/AuthContext";
 import {
   getBookingByCode,
   releaseBooking,
@@ -47,6 +48,7 @@ export default function BookingDetails() {
   const params = useLocalSearchParams();
   const bookingCode = Array.isArray(params.id) ? params.id[0] : params.id;
   const db = useSQLiteContext();
+  const { admin } = useAuth();
   const [booking, setBooking] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -101,6 +103,8 @@ export default function BookingDetails() {
       setIsSaving(false);
     }
   };
+
+  if (!admin) return <Redirect href="/(auth)/signin" />;
 
   if (isLoading) {
     return (
@@ -206,6 +210,10 @@ export default function BookingDetails() {
           <InfoRow icon="return-down-back-outline" label="RETURN" value={formatDate(booking.returnAt)} last />
         </View>
 
+        {booking.status === "CANCELLED" && booking.processedBy ? (
+          <Text style={styles.muted}>Cancellation processed by {booking.processedBy}</Text>
+        ) : null}
+
         {booking.releasedAt ? (
           <>
             <SectionTitle icon="key-outline" title="RENTAL TRANSACTION" />
@@ -213,8 +221,11 @@ export default function BookingDetails() {
               <InfoRow icon="log-out-outline" label="VEHICLE RELEASED" value={formatDate(booking.releasedAt)} />
               <InfoRow icon="log-in-outline" label="VEHICLE RETURNED" value={formatDate(booking.returnedAt)} last />
               <Text style={styles.muted}>
-                {booking.entryMethod || "MANUAL"} entry · processed by {booking.processedBy || "Admin"}
+                {booking.entryMethod || "MANUAL"} entry · processed by {booking.releasedBy || "Admin"}
               </Text>
+              {booking.returnedBy ? (
+                <Text style={styles.muted}>Returned by {booking.returnedBy}</Text>
+              ) : null}
             </View>
           </>
         ) : null}
@@ -272,6 +283,9 @@ export default function BookingDetails() {
                     ? `${formatAmount(amountDue)} due · No successful payment recorded`
                     : "No successful payment recorded"}
             </Text>
+            {booking.paymentProcessedBy ? (
+              <Text style={styles.muted}>Payment processed by {booking.paymentProcessedBy}</Text>
+            ) : null}
           </View>
         </View>
 
@@ -313,7 +327,11 @@ export default function BookingDetails() {
             <TouchableOpacity
               style={[styles.primaryAction, styles.fullAction, isSaving && styles.actionDisabled]}
               disabled={isSaving}
-              onPress={() => void runAction(() => releaseBooking(db, booking.id, verification))}
+              onPress={() =>
+                void runAction(() =>
+                  releaseBooking(db, booking.id, verification, admin.name)
+                )
+              }
             >
               <Text style={styles.primaryActionText}>Record vehicle release</Text>
             </TouchableOpacity>
@@ -337,7 +355,13 @@ export default function BookingDetails() {
                     text: "Cancel reservation",
                     style: "destructive",
                     onPress: () => void runAction(() =>
-                      updateBookingStatus(db, booking.id, "CANCELLED", rejectionReason)
+                      updateBookingStatus(
+                        db,
+                        booking.id,
+                        "CANCELLED",
+                        admin.name,
+                        rejectionReason
+                      )
                     ),
                   },
                 ]
@@ -355,7 +379,9 @@ export default function BookingDetails() {
             <TouchableOpacity
               style={[styles.primaryAction, styles.fullAction, isSaving && styles.actionDisabled]}
               disabled={isSaving}
-              onPress={() => void runAction(() => returnBooking(db, booking.id))}
+              onPress={() =>
+                void runAction(() => returnBooking(db, booking.id, admin.name))
+              }
             >
               <Text style={styles.primaryActionText}>Record return · {formatAmount(booking.totalAmount)}</Text>
             </TouchableOpacity>

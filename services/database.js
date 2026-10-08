@@ -1,8 +1,9 @@
 import { customers } from "../data/customers";
 import { vehicles } from "../data/vehicles";
+import * as Crypto from "expo-crypto";
 import { calculateRentalQuote, DISTANCE_RATE_PER_KM } from "./pricing";
 
-const DATABASE_VERSION = 9;
+const DATABASE_VERSION = 11;
 
 function generateBookingCode() {
   return `RT-${Date.now().toString().slice(-8)}`;
@@ -13,47 +14,6 @@ function demoDateOffset(days, hour) {
   date.setDate(date.getDate() + days);
   date.setHours(hour, 0, 0, 0);
   return date.toISOString();
-}
-
-async function ensureYamahaR15MFleetVehicle(db) {
-  const existingYamaha = await db.getFirstAsync(
-    `SELECT id FROM vehicles
-     WHERE lower(trim(brand)) = 'yamaha'
-       AND lower(trim(model)) = 'r15m'
-     LIMIT 1`
-  );
-
-  if (existingYamaha) {
-    await db.runAsync(
-      `UPDATE vehicles
-       SET image_asset_key = ?, vehicle_type = ?, archived_at = NULL
-       WHERE id = ?`,
-      "yamaha_r15m",
-      "Motorcycle",
-      existingYamaha.id
-    );
-    return;
-  }
-
-  const yamaha = vehicles.find(
-    (vehicle) => vehicle.brand === "YAMAHA" && vehicle.name === "R15M"
-  );
-  if (!yamaha) {
-    throw new Error("The Yamaha R15M fleet entry is missing.");
-  }
-
-  await db.runAsync(
-    `INSERT INTO vehicles
-      (brand, model, vehicle_type, plate_number, daily_rate, status, image_asset_key)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    yamaha.brand,
-    yamaha.name,
-    "Motorcycle",
-    yamaha.plateNumber,
-    yamaha.price,
-    yamaha.status,
-    yamaha.imageAssetKey
-  );
 }
 
 export async function initializeDatabase(db) {
@@ -150,32 +110,6 @@ export async function initializeDatabase(db) {
         END;
       `);
 
-      for (const vehicle of vehicles) {
-        await db.runAsync(
-          `INSERT OR IGNORE INTO vehicles
-            (id, brand, model, vehicle_type, plate_number, daily_rate, status, image_asset_key)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          vehicle.id,
-          vehicle.brand,
-          vehicle.name,
-          vehicle.vehicleType || "Car",
-          vehicle.plateNumber,
-          vehicle.price,
-          vehicle.status,
-          vehicle.imageAssetKey
-        );
-      }
-
-      for (const customer of customers) {
-        await db.runAsync(
-          `INSERT OR IGNORE INTO customers (id, name, phone)
-           VALUES (?, ?, ?)`,
-          customer.id,
-          customer.name,
-          customer.phone
-        );
-      }
-
       await db.execAsync("PRAGMA user_version = 1;");
     });
     currentVersion = 1;
@@ -195,60 +129,6 @@ export async function initializeDatabase(db) {
 
   if (currentVersion < 3) {
     await db.withTransactionAsync(async () => {
-      await db.execAsync(`
-        INSERT OR IGNORE INTO customers (name) VALUES ('Alex Rivera');
-        INSERT OR IGNORE INTO customers (name) VALUES ('Bea Lim');
-      `);
-
-      const demoBookings = [
-        {
-          code: "RT-2409",
-          customer: "Mia Santos",
-          vehicleId: 3,
-          pickupAt: demoDateOffset(-10, 10),
-          returnAt: demoDateOffset(-7, 10),
-          totalAmount: 10500,
-          status: "COMPLETED",
-        },
-        {
-          code: "RT-2408",
-          customer: "Alex Rivera",
-          vehicleId: 2,
-          pickupAt: demoDateOffset(-1, 9),
-          returnAt: demoDateOffset(2, 9),
-          totalAmount: 13800,
-          status: "ACTIVE",
-        },
-        {
-          code: "RT-2397",
-          customer: "Bea Lim",
-          vehicleId: 1,
-          pickupAt: demoDateOffset(-30, 8),
-          returnAt: demoDateOffset(-28, 8),
-          totalAmount: 8400,
-          status: "COMPLETED",
-        },
-      ];
-
-      for (const booking of demoBookings) {
-        const customer = await db.getFirstAsync(
-          "SELECT id FROM customers WHERE name = ? ORDER BY id LIMIT 1",
-          booking.customer
-        );
-        await db.runAsync(
-          `INSERT OR IGNORE INTO bookings
-            (booking_code, customer_id, vehicle_id, pickup_at, return_at,
-             total_amount, status, notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'RentTrack demo booking')`,
-          booking.code,
-          customer.id,
-          booking.vehicleId,
-          booking.pickupAt,
-          booking.returnAt,
-          booking.totalAmount,
-          booking.status
-        );
-      }
       await db.execAsync("PRAGMA user_version = 3;");
     });
     currentVersion = 3;
@@ -352,7 +232,7 @@ export async function initializeDatabase(db) {
         SELECT
           id, pickup_at,
           CASE WHEN status = 'COMPLETED' THEN return_at ELSE NULL END,
-          'MANUAL', total_amount, 'RentTrack Admin (prototype)'
+          'MANUAL', total_amount, 'Demo data'
         FROM bookings
         WHERE status IN ('ACTIVE', 'COMPLETED');
 
@@ -390,23 +270,6 @@ export async function initializeDatabase(db) {
 
   if (currentVersion < 7) {
     await db.withTransactionAsync(async () => {
-      await db.runAsync(
-        `INSERT INTO customers (name)
-         SELECT ? WHERE NOT EXISTS (
-           SELECT 1 FROM customers WHERE lower(name) = lower(?)
-         )`,
-        "Mia Santos",
-        "Mia Santos"
-      );
-      await db.runAsync(
-        `UPDATE customers
-         SET email = 'mia@renttrack.demo'
-         WHERE id = (
-           SELECT id FROM customers
-           WHERE lower(name) = lower(?) ORDER BY id LIMIT 1
-         ) AND (email IS NULL OR email = '')`,
-        "Mia Santos"
-      );
       await db.execAsync("PRAGMA user_version = 7;");
     });
     currentVersion = 7;
@@ -414,102 +277,6 @@ export async function initializeDatabase(db) {
 
   if (currentVersion < 8) {
     await db.withTransactionAsync(async () => {
-      const demoVehicles = [
-        [1, "NCR 8246"],
-        [2, "NCR 1912"],
-        [3, "NCR 5638"],
-        [4, "DVO 4821"],
-        [5, "DVO 7350"],
-        [6, "TAG 6305"],
-      ];
-      for (const [vehicleId, plateNumber] of demoVehicles) {
-        await db.runAsync(
-          `UPDATE vehicles
-           SET plate_number = ?
-           WHERE id = ? AND (plate_number IS NULL OR TRIM(plate_number) = '')`,
-          plateNumber,
-          vehicleId
-        );
-      }
-
-      const demoBookings = [
-        {
-          code: "RT-2409",
-          destination: "Davao City, Philippines",
-          destinationKm: 55,
-          baseAmount: 10500,
-          paymentAmount: 7500,
-          paymentMethod: "GCASH",
-        },
-        {
-          code: "RT-2408",
-          destination: "Panabo City, Davao del Norte",
-          destinationKm: 30,
-          baseAmount: 13800,
-          paymentAmount: 13800,
-          paymentMethod: "CARD",
-        },
-        {
-          code: "RT-2397",
-          destination: "Tagum City, Philippines",
-          destinationKm: 8,
-          baseAmount: 8400,
-          paymentAmount: 8400,
-          paymentMethod: "CARD",
-        },
-      ];
-
-      for (const booking of demoBookings) {
-        const record = await db.getFirstAsync(
-          `SELECT id, total_amount AS totalAmount, pickup_at AS pickupAt,
-                  return_at AS returnAt
-           FROM bookings
-           WHERE booking_code = ?`,
-          booking.code
-        );
-        if (!record) continue;
-
-        const totalAmount =
-          booking.baseAmount + booking.destinationKm * DISTANCE_RATE_PER_KM;
-        const result = await db.runAsync(
-          `UPDATE bookings
-           SET destination = ?, destination_km = ?, distance_rate_per_km = ?,
-               total_amount = ?
-           WHERE id = ? AND (destination IS NULL OR TRIM(destination) = '')
-             AND destination_km = 0`,
-          booking.destination,
-          booking.destinationKm,
-          DISTANCE_RATE_PER_KM,
-          totalAmount,
-          record.id
-        );
-        if (result.changes === 1) {
-          await db.runAsync(
-            `UPDATE rental_transactions
-             SET total_amount = ?
-             WHERE booking_id = ? AND total_amount = ?`,
-            totalAmount,
-            record.id,
-            record.totalAmount
-          );
-        }
-
-        await db.runAsync(
-          `INSERT INTO payments
-            (booking_id, amount, currency, method, status, reference, paid_at)
-           SELECT ?, ?, 'PHP', ?, 'PAID', ?, ?
-           WHERE NOT EXISTS (
-             SELECT 1 FROM payments WHERE booking_id = ?
-           )`,
-          record.id,
-          booking.paymentAmount,
-          booking.paymentMethod,
-          `DEMO-${booking.code}`,
-          record.returnAt,
-          record.id
-        );
-      }
-
       await db.execAsync("PRAGMA user_version = 8;");
     });
     currentVersion = 8;
@@ -522,31 +289,255 @@ export async function initializeDatabase(db) {
     currentVersion = 9;
   }
 
+  if (currentVersion < 10) {
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS admin_users (
+          id INTEGER PRIMARY KEY NOT NULL,
+          name TEXT NOT NULL,
+          email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+          password_hash TEXT NOT NULL,
+          salt TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        PRAGMA user_version = 10;
+      `);
+    });
+    currentVersion = 10;
+  }
+
+  if (currentVersion < 11) {
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(`
+        ALTER TABLE bookings ADD COLUMN processed_by TEXT;
+        ALTER TABLE rental_transactions ADD COLUMN returned_by TEXT;
+        ALTER TABLE payments ADD COLUMN processed_by TEXT;
+        PRAGMA user_version = 11;
+      `);
+    });
+    currentVersion = 11;
+  }
+
   if (currentVersion > DATABASE_VERSION) {
     throw new Error("RentTrack database version is newer than this app supports.");
   }
 
-  await db.withTransactionAsync(() => ensureYamahaR15MFleetVehicle(db));
 }
 
-export async function initializeDemoDatabase(db) {
-  await db.execAsync("PRAGMA foreign_keys = OFF;");
-  try {
-    await db.withTransactionAsync(async () => {
-      await db.execAsync(`
-        DROP TABLE IF EXISTS payments;
-        DROP TABLE IF EXISTS rental_transactions;
-        DROP TABLE IF EXISTS bookings;
-        DROP TABLE IF EXISTS vehicles;
-        DROP TABLE IF EXISTS customers;
-        PRAGMA user_version = 0;
-      `);
-    });
-  } finally {
-    await db.execAsync("PRAGMA foreign_keys = ON;");
+function normalizeAdminEmail(email) {
+  return email.trim().toLowerCase();
+}
+
+async function hashAdminPassword(password, salt) {
+  return Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    `${salt}:${password}`
+  );
+}
+
+export async function createAdmin(db, { name, email, password }) {
+  const normalizedName = name?.trim() || "";
+  const normalizedEmail = normalizeAdminEmail(email || "");
+  if (!normalizedName || !normalizedEmail || !password) {
+    throw new Error("Name, email, and password are required.");
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    throw new Error("Enter a valid email address.");
+  }
+  if (password.length < 8) {
+    throw new Error("Your password must be at least 8 characters.");
   }
 
+  const salt = Crypto.randomUUID();
+  const passwordHash = await hashAdminPassword(password, salt);
+  const existingAdmin = await db.getFirstAsync(
+    "SELECT id FROM admin_users WHERE email = ?",
+    normalizedEmail
+  );
+
+  if (existingAdmin) {
+    throw new Error("An admin account with this email already exists.");
+  }
+
+  try {
+    const result = await db.runAsync(
+      `INSERT INTO admin_users (name, email, password_hash, salt)
+       VALUES (?, ?, ?, ?)`,
+      normalizedName,
+      normalizedEmail,
+      passwordHash,
+      salt
+    );
+
+    return {
+      id: result.lastInsertRowId,
+      name: normalizedName,
+      email: normalizedEmail,
+    };
+  } catch (error) {
+    if (error?.message?.includes("admin_users.email")) {
+      throw new Error("An admin account with this email already exists.");
+    }
+    throw error;
+  }
+}
+
+export async function verifyAdminLogin(db, email, password) {
+  const normalizedEmail = normalizeAdminEmail(email || "");
+  if (!normalizedEmail || !password) return null;
+  const admin = await db.getFirstAsync(
+    `SELECT id, name, email, password_hash AS passwordHash, salt
+     FROM admin_users WHERE email = ?`,
+    normalizedEmail
+  );
+
+  if (!admin) return null;
+
+  const passwordHash = await hashAdminPassword(password, admin.salt);
+  if (passwordHash !== admin.passwordHash) return null;
+
+  return { id: admin.id, name: admin.name, email: admin.email };
+}
+
+export async function seedDemoData(db) {
   await initializeDatabase(db);
+
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(`
+      DELETE FROM payments;
+      DELETE FROM rental_transactions;
+      DELETE FROM bookings;
+      DELETE FROM vehicles;
+      DELETE FROM customers;
+    `);
+
+    for (const vehicle of vehicles) {
+      await db.runAsync(
+        `INSERT INTO vehicles
+          (id, brand, model, vehicle_type, plate_number, daily_rate, status, image_asset_key)
+         VALUES (?, ?, ?, ?, ?, ?, 'AVAILABLE', ?)`,
+        vehicle.id,
+        vehicle.brand,
+        vehicle.name,
+        vehicle.vehicleType || "Car",
+        vehicle.plateNumber,
+        vehicle.price,
+        vehicle.imageAssetKey
+      );
+    }
+
+    const demoCustomers = [
+      ...customers,
+      { name: "Alex Rivera" },
+      { name: "Bea Lim" },
+    ];
+    const customerIds = new Map();
+    for (const customer of demoCustomers) {
+      const result = await db.runAsync(
+        `INSERT INTO customers (name, phone, email) VALUES (?, ?, ?)`,
+        customer.name,
+        customer.phone || null,
+        customer.email || null
+      );
+      customerIds.set(customer.name, result.lastInsertRowId);
+    }
+
+    const demoBookings = [
+      {
+        code: "RT-2409",
+        customer: "Mia Santos",
+        vehicleId: 3,
+        pickupAt: demoDateOffset(-10, 10),
+        returnAt: demoDateOffset(-7, 10),
+        baseAmount: 10500,
+        destination: "Davao City, Philippines",
+        destinationKm: 55,
+        status: "COMPLETED",
+        paymentAmount: 7500,
+        paymentMethod: "GCASH",
+      },
+      {
+        code: "RT-2408",
+        customer: "Alex Rivera",
+        vehicleId: 2,
+        pickupAt: demoDateOffset(-1, 9),
+        returnAt: demoDateOffset(2, 9),
+        baseAmount: 13800,
+        destination: "Panabo City, Davao del Norte",
+        destinationKm: 30,
+        status: "ACTIVE",
+        paymentAmount: 13800,
+        paymentMethod: "CARD",
+      },
+      {
+        code: "RT-2397",
+        customer: "Bea Lim",
+        vehicleId: 1,
+        pickupAt: demoDateOffset(-30, 8),
+        returnAt: demoDateOffset(-28, 8),
+        baseAmount: 8400,
+        destination: "Tagum City, Philippines",
+        destinationKm: 8,
+        status: "COMPLETED",
+        paymentAmount: 8400,
+        paymentMethod: "CARD",
+      },
+    ];
+
+    for (const booking of demoBookings) {
+      const totalAmount =
+        booking.baseAmount + booking.destinationKm * DISTANCE_RATE_PER_KM;
+      const customerId = customerIds.get(booking.customer);
+      const result = await db.runAsync(
+        `INSERT INTO bookings
+          (booking_code, customer_id, vehicle_id, pickup_at, return_at,
+           total_amount, status, notes, destination, destination_km,
+           distance_rate_per_km, booking_channel)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'RentTrack demo booking', ?, ?, ?, 'WALK_IN')`,
+        booking.code,
+        customerId,
+        booking.vehicleId,
+        booking.pickupAt,
+        booking.returnAt,
+        totalAmount,
+        booking.status,
+        booking.destination,
+        booking.destinationKm,
+        DISTANCE_RATE_PER_KM
+      );
+
+      if (booking.status === "ACTIVE" || booking.status === "COMPLETED") {
+        await db.runAsync(
+          `INSERT INTO rental_transactions
+            (booking_id, released_at, returned_at, entry_method, total_amount, processed_by)
+           VALUES (?, ?, ?, 'MANUAL', ?, 'Demo data')`,
+          result.lastInsertRowId,
+          booking.pickupAt,
+          booking.status === "COMPLETED" ? booking.returnAt : null,
+          totalAmount
+        );
+      }
+
+      await db.runAsync(
+        `INSERT INTO payments
+          (booking_id, amount, currency, method, status, reference, paid_at, processed_by)
+         VALUES (?, ?, 'PHP', ?, 'PAID', ?, ?, 'Demo data')`,
+        result.lastInsertRowId,
+        booking.paymentAmount,
+        booking.paymentMethod,
+        `DEMO-${booking.code}`,
+        booking.returnAt
+      );
+    }
+
+    await db.runAsync(
+      `UPDATE vehicles
+       SET status = 'RENTED'
+       WHERE id IN (
+         SELECT vehicle_id FROM bookings WHERE status = 'ACTIVE'
+       )`
+    );
+  });
 }
 
 const VEHICLE_SELECT = `
@@ -849,7 +840,15 @@ export async function createBooking(db, booking) {
   return bookingId;
 }
 
-export async function updateBookingStatus(db, bookingId, nextStatus, remarks = "") {
+export async function updateBookingStatus(
+  db,
+  bookingId,
+  nextStatus,
+  processedBy,
+  remarks = ""
+) {
+  const processor = processedBy?.trim();
+  if (!processor) throw new Error("The processing admin could not be identified.");
   if (!["RESERVED", "REJECTED", "CANCELLED"].includes(nextStatus)) {
     throw new Error("This booking action is not supported.");
   }
@@ -892,9 +891,10 @@ export async function updateBookingStatus(db, bookingId, nextStatus, remarks = "
     }
 
     await db.runAsync(
-      "UPDATE bookings SET status = ?, remarks = ? WHERE id = ?",
+      "UPDATE bookings SET status = ?, remarks = ?, processed_by = ? WHERE id = ?",
       nextStatus,
       remarks.trim() || null,
+      processor,
       Number(bookingId)
     );
 
@@ -902,7 +902,15 @@ export async function updateBookingStatus(db, bookingId, nextStatus, remarks = "
   });
 }
 
-export async function releaseBooking(db, bookingId, verification, entryMethod = "MANUAL") {
+export async function releaseBooking(
+  db,
+  bookingId,
+  verification,
+  processedBy,
+  entryMethod = "MANUAL"
+) {
+  const processor = processedBy?.trim();
+  if (!processor) throw new Error("The processing admin could not be identified.");
   if (!verification?.validId || !verification?.contact || !verification?.emergencyContact) {
     throw new Error("Confirm the valid ID, contact number, and emergency contact before release.");
   }
@@ -930,11 +938,12 @@ export async function releaseBooking(db, bookingId, verification, entryMethod = 
     await db.runAsync(
       `INSERT INTO rental_transactions
         (booking_id, released_at, entry_method, total_amount, processed_by)
-       VALUES (?, ?, ?, ?, 'RentTrack Admin (prototype)')`,
+       VALUES (?, ?, ?, ?, ?)`,
       Number(bookingId),
       releasedAt,
       entryMethod,
-      Number(booking.totalAmount)
+      Number(booking.totalAmount),
+      processor
     );
     await db.runAsync(
       "UPDATE bookings SET status = 'ACTIVE' WHERE id = ?",
@@ -944,7 +953,9 @@ export async function releaseBooking(db, bookingId, verification, entryMethod = 
   });
 }
 
-export async function returnBooking(db, bookingId) {
+export async function returnBooking(db, bookingId, processedBy) {
+  const processor = processedBy?.trim();
+  if (!processor) throw new Error("The processing admin could not be identified.");
   await db.withTransactionAsync(async () => {
     const booking = await db.getFirstAsync(
       `SELECT bookings.status, bookings.vehicle_id AS vehicleId,
@@ -976,10 +987,11 @@ export async function returnBooking(db, bookingId) {
     ).totalAmount;
     await db.runAsync(
       `UPDATE rental_transactions
-       SET returned_at = ?, total_amount = ?
+       SET returned_at = ?, total_amount = ?, returned_by = ?
        WHERE booking_id = ? AND returned_at IS NULL`,
       returnedAt.toISOString(),
       finalAmount,
+      processor,
       Number(bookingId)
     );
     await db.runAsync(
@@ -1214,11 +1226,13 @@ export function getBookingByCode(db, bookingCode) {
       bookings.status,
       bookings.booking_channel AS bookingChannel,
       bookings.remarks,
+      bookings.processed_by AS processedBy,
       vehicles.daily_rate AS dailyRate,
       rental_transactions.released_at AS releasedAt,
       rental_transactions.returned_at AS returnedAt,
       rental_transactions.entry_method AS entryMethod,
-      rental_transactions.processed_by AS processedBy,
+      rental_transactions.processed_by AS releasedBy,
+      rental_transactions.returned_by AS returnedBy,
       CASE
         WHEN COALESCE((
           SELECT SUM(payments.amount) FROM payments
@@ -1247,7 +1261,10 @@ export function getBookingByCode(db, bookingCode) {
        ORDER BY payments.id DESC LIMIT 1) AS paymentMethod,
       (SELECT payments.reference FROM payments
        WHERE payments.booking_id = bookings.id
-       ORDER BY payments.id DESC LIMIT 1) AS paymentReference
+       ORDER BY payments.id DESC LIMIT 1) AS paymentReference,
+      (SELECT payments.processed_by FROM payments
+       WHERE payments.booking_id = bookings.id
+       ORDER BY payments.id DESC LIMIT 1) AS paymentProcessedBy
     FROM bookings
     JOIN customers ON customers.id = bookings.customer_id
     JOIN vehicles ON vehicles.id = bookings.vehicle_id
@@ -1351,7 +1368,9 @@ export function getBookingsForCustomerId(db, customerId) {
   );
 }
 
-export async function createPayment(db, payment) {
+export async function createPayment(db, payment, processedBy) {
+  const processor = processedBy?.trim();
+  if (!processor) throw new Error("The processing admin could not be identified.");
   let paymentId;
   await db.withTransactionAsync(async () => {
     const booking = await db.getFirstAsync(
@@ -1375,13 +1394,15 @@ export async function createPayment(db, payment) {
     if (amountDue <= 0) throw new Error("This booking has no remaining balance.");
 
     const result = await db.runAsync(
-      `INSERT INTO payments (booking_id, amount, currency, method, status, reference, paid_at)
-       VALUES (?, ?, 'PHP', ?, 'PAID', ?, ?)`,
+      `INSERT INTO payments
+        (booking_id, amount, currency, method, status, reference, paid_at, processed_by)
+       VALUES (?, ?, 'PHP', ?, 'PAID', ?, ?, ?)`,
       Number(payment.bookingId),
       amountDue,
       payment.method,
       payment.reference,
-      new Date().toISOString()
+      new Date().toISOString(),
+      processor
     );
     paymentId = result.lastInsertRowId;
   });

@@ -5,6 +5,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Pressable,
+  Alert,
+  Platform,
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,8 +14,14 @@ import { router } from "expo-router";
 import { addDatabaseChangeListener, useSQLiteContext } from "expo-sqlite";
 
 import { Colors } from "../../constants/colors";
+import { useAuth } from "../../context/AuthContext";
 import useFleetVehicles from "../../hooks/useFleetVehicles";
-import { getBookings, getCustomers, getMonthlyReportData } from "../../services/database";
+import {
+  getBookings,
+  getCustomers,
+  getMonthlyReportData,
+  seedDemoData,
+} from "../../services/database";
 
 function formatCurrency(value) {
   return `₱${Number(value || 0).toLocaleString("en-PH")}`;
@@ -48,11 +56,13 @@ function getWeeklyRevenue(bookings, month) {
 export default function Overview() {
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const db = useSQLiteContext();
+  const { admin, clearAdmin } = useAuth();
   const { vehicles, error: fleetError } = useFleetVehicles();
   const [liveBookings, setLiveBookings] = useState([]);
   const [customerCount, setCustomerCount] = useState(0);
   const [monthlyReport, setMonthlyReport] = useState(null);
   const [dataError, setDataError] = useState("");
+  const [isResettingDemo, setIsResettingDemo] = useState(false);
 
   const loadOverviewData = useCallback(async () => {
     try {
@@ -71,6 +81,53 @@ export default function Overview() {
       setDataError(error?.message || "Dashboard data could not be loaded.");
     }
   }, [db]);
+
+  const resetDemoData = async () => {
+    setIsResettingDemo(true);
+    try {
+      await seedDemoData(db);
+      await loadOverviewData();
+      if (Platform.OS === "web") {
+        globalThis.alert("The sample records have been restored.");
+      } else {
+        Alert.alert("Demo data ready", "The sample records have been restored.");
+      }
+    } catch (error) {
+      const message = error?.message || "Please try again.";
+      if (Platform.OS === "web") {
+        globalThis.alert(`Could not reset demo data: ${message}`);
+      } else {
+        Alert.alert("Could not reset demo data", message);
+      }
+    } finally {
+      setIsResettingDemo(false);
+    }
+  };
+
+  const confirmDemoDataReset = () => {
+    const message =
+      "This will replace all saved vehicles, customers, bookings, and payments with the sample demo data. This cannot be undone.";
+    if (Platform.OS === "web") {
+      if (globalThis.confirm(`Reset demo data?\n\n${message}`)) {
+        resetDemoData();
+      }
+      return;
+    }
+
+    Alert.alert("Reset demo data?", message, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Reset demo data",
+        style: "destructive",
+        onPress: resetDemoData,
+      },
+    ]);
+  };
+
+  const handleLogout = () => {
+    clearAdmin();
+    router.replace("/(auth)/signin");
+  };
 
   useEffect(() => {
     let isActive = true;
@@ -343,6 +400,19 @@ export default function Overview() {
           />
         </View>
 
+        <TouchableOpacity
+          style={[styles.resetDemoButton, isResettingDemo && styles.resetDemoButtonDisabled]}
+          onPress={confirmDemoDataReset}
+          disabled={isResettingDemo}
+          accessibilityRole="button"
+          accessibilityLabel="Reset demo data"
+        >
+          <Ionicons name="refresh-outline" size={17} color={Colors.warning} />
+          <Text style={styles.resetDemoButtonText}>
+            {isResettingDemo ? "Resetting demo data..." : "Reset demo data"}
+          </Text>
+        </TouchableOpacity>
+
         <View style={{ height: 20 }} />
       </ScrollView>
 
@@ -359,7 +429,7 @@ export default function Overview() {
               <View style={styles.profileAvatar}>
                 <Ionicons name="person" size={18} color={Colors.primary} />
               </View>
-              <Text style={styles.accountName}>Fleet Admin</Text>
+              <Text style={styles.accountName}>{admin.name}</Text>
             </View>
 
             <View style={styles.menuDivider} />
@@ -370,7 +440,7 @@ export default function Overview() {
             <View style={styles.menuDivider} />
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => router.replace("/(auth)/signin")}
+              onPress={handleLogout}
               accessibilityRole="button"
             >
               <Ionicons name="log-out-outline" size={18} color={Colors.danger} />
@@ -794,5 +864,28 @@ const styles = StyleSheet.create({
     fontSize: 8,
     marginTop: 8,
     textAlign: "center",
+  },
+
+  resetDemoButton: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+  },
+
+  resetDemoButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  resetDemoButtonText: {
+    color: Colors.warning,
+    fontSize: 11,
+    fontWeight: "700",
   },
 });

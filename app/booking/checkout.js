@@ -8,10 +8,11 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { addDatabaseChangeListener, useSQLiteContext } from "expo-sqlite";
 
 import { Colors } from "../../constants/colors";
+import { useAuth } from "../../context/AuthContext";
 import { createPayment, getBookingByCode } from "../../services/database";
 
 const PAYMENT_METHODS = [
@@ -38,6 +39,7 @@ export default function Checkout() {
   const params = useLocalSearchParams();
   const bookingCode = Array.isArray(params.id) ? params.id[0] : params.id;
   const db = useSQLiteContext();
+  const { admin } = useAuth();
   const [booking, setBooking] = useState(null);
   const [selectedMethod, setSelectedMethod] = useState("GCASH");
   const [isLoading, setIsLoading] = useState(true);
@@ -94,7 +96,7 @@ export default function Checkout() {
         bookingId: booking.id,
         method: selectedMethod,
         reference,
-      });
+      }, admin.name);
       setSuccessReference(reference);
       await loadBooking();
     } catch (error) {
@@ -103,6 +105,8 @@ export default function Checkout() {
       setIsSubmitting(false);
     }
   };
+
+  if (!admin) return <Redirect href="/(auth)/signin" />;
 
   if (isLoading) {
     return (

@@ -5,12 +5,26 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
 import { Colors } from "../../constants/colors";
+import { useAuth } from "../../context/AuthContext";
+import { createAdmin } from "../../services/database";
 
 export default function Register() {
   const [agreed, setAgreed] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const db = useSQLiteContext();
+  const { setAdmin } = useAuth();
+
   const returnToSignIn = () => {
     if (router.canGoBack()) {
       router.back();
@@ -19,78 +33,165 @@ export default function Register() {
     }
   };
 
+  const handleCreateAccount = async () => {
+    const normalizedName = name.trim();
+    const normalizedEmail = email.trim();
+    if (!normalizedName || !normalizedEmail || !password || !confirmPassword) {
+      setErrorMessage("Complete all fields to create your account.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setErrorMessage("Enter a valid email address.");
+      return;
+    }
+    if (password.length < 8) {
+      setErrorMessage("Your password must be at least 8 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMessage("The passwords do not match.");
+      return;
+    }
+
+    setErrorMessage("");
+    setIsCreatingAccount(true);
+    try {
+      const admin = await createAdmin(db, {
+        name: normalizedName,
+        email: normalizedEmail,
+        password,
+      });
+      setAdmin(admin);
+      router.replace("/(tabs)");
+    } catch (error) {
+      setErrorMessage(
+        error?.message || "Unable to create your account. Please try again."
+      );
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.form}>
-        <Text style={styles.label}>GET STARTED</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.form}>
+          <Text style={styles.label}>GET STARTED</Text>
 
-        <Text style={styles.title}>Create your account</Text>
+          <Text style={styles.title}>Create your account</Text>
 
-        <Text style={styles.description}>
-          Set up your workspace in just a minute.
-        </Text>
+          <Text style={styles.description}>
+            Set up your workspace in just a minute.
+          </Text>
 
-        <Text style={styles.inputLabel}>FULL NAME</Text>
-        <TextInput
-          placeholder="Juan Dela Cruz"
-          placeholderTextColor={Colors.muted}
-          style={styles.input}
-        />
-
-        <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
-        <TextInput
-          placeholder="you@company.com"
-          placeholderTextColor={Colors.muted}
-          style={styles.input}
-        />
-
-        <Text style={styles.inputLabel}>PASSWORD</Text>
-        <TextInput
-          placeholder="At least 6 characters"
-          placeholderTextColor={Colors.muted}
-          style={styles.input}
-          secureTextEntry
-        />
-
-        <TouchableOpacity
-          style={styles.termsRow}
-          onPress={() => setAgreed((prev) => !prev)}
-        >
-          <View
-            style={[styles.checkbox, agreed && styles.checkboxChecked]}
+          <Text style={styles.inputLabel}>FULL NAME</Text>
+          <TextInput
+            placeholder="Juan Dela Cruz"
+            placeholderTextColor={Colors.muted}
+            style={styles.input}
+            autoComplete="name"
+            textContentType="name"
+            value={name}
+            onChangeText={setName}
           />
-          <Text style={styles.terms}>
-            I agree to the{" "}
-            <Text style={styles.link}>Terms of Service</Text>
-            {" "}and{" "}
-            <Text style={styles.link}>Privacy Policy.</Text>
-          </Text>
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.replace("/(tabs)")}
-        >
-          <Text style={styles.buttonText}>Create account</Text>
-          <Text style={styles.buttonArrow}>→</Text>
-        </TouchableOpacity>
+          <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
+          <TextInput
+            placeholder="you@company.com"
+            placeholderTextColor={Colors.muted}
+            style={styles.input}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            textContentType="emailAddress"
+            value={email}
+            onChangeText={setEmail}
+          />
 
-        <View style={styles.divider} />
+          <Text style={styles.inputLabel}>PASSWORD</Text>
+          <TextInput
+            placeholder="At least 8 characters"
+            placeholderTextColor={Colors.muted}
+            style={styles.input}
+            secureTextEntry
+            autoComplete="new-password"
+            textContentType="newPassword"
+            value={password}
+            onChangeText={setPassword}
+          />
 
-        <Text style={styles.bottomText}>
-          Already have an account?{" "}
-          <Text
-            style={styles.link}
-            onPress={returnToSignIn}
+          <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
+          <TextInput
+            placeholder="Re-enter your password"
+            placeholderTextColor={Colors.muted}
+            style={styles.input}
+            secureTextEntry
+            autoComplete="new-password"
+            textContentType="newPassword"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+
+          <TouchableOpacity
+            style={styles.termsRow}
+            onPress={() => setAgreed((prev) => !prev)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: agreed }}
           >
-            Sign In
-          </Text>
-        </Text>
-      </View>
+            <View
+              style={[styles.checkbox, agreed && styles.checkboxChecked]}
+            />
+            <Text style={styles.terms}>
+              I agree to the{" "}
+              <Text style={styles.link}>Terms of Service</Text>
+              {" "}and{" "}
+              <Text style={styles.link}>Privacy Policy.</Text>
+            </Text>
+          </TouchableOpacity>
 
-      <Text style={styles.footer}>
-        RentTrack Fleet Management · v1.0
-      </Text>
+          {errorMessage ? (
+            <Text style={styles.errorMessage} accessibilityRole="alert">
+              {errorMessage}
+            </Text>
+          ) : null}
+
+          <TouchableOpacity
+            style={[styles.button, isCreatingAccount && styles.buttonDisabled]}
+            onPress={handleCreateAccount}
+            disabled={isCreatingAccount}
+            accessibilityRole="button"
+          >
+            {isCreatingAccount ? (
+              <ActivityIndicator color={Colors.background} />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Create account</Text>
+                <Text style={styles.buttonArrow}>→</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <Text style={styles.bottomText}>
+            Already have an account?{" "}
+            <Text
+              style={styles.link}
+              onPress={returnToSignIn}
+            >
+              Sign In
+            </Text>
+          </Text>
+        </View>
+
+        <Text style={styles.footer}>
+          RentTrack Fleet Management · v1.0
+        </Text>
+      </ScrollView>
     </View>
   );
 }
@@ -99,11 +200,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
     padding: 20,
+    paddingBottom: 14,
   },
 
   form: {
-    marginTop: 155,
+    width: "100%",
   },
 
   label: {
@@ -122,7 +229,7 @@ const styles = StyleSheet.create({
   description: {
     color: Colors.muted,
     marginTop: 8,
-    marginBottom: 22,
+    marginBottom: 14,
   },
 
   inputLabel: {
@@ -172,6 +279,12 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
 
+  errorMessage: {
+    color: Colors.danger,
+    fontSize: 12,
+    marginTop: 12,
+  },
+
   link: {
     color: Colors.primary,
     fontWeight: "700",
@@ -186,6 +299,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     marginTop: 20,
+  },
+
+  buttonDisabled: {
+    opacity: 0.7,
   },
 
   buttonText: {
@@ -213,10 +330,9 @@ const styles = StyleSheet.create({
   },
 
   footer: {
-    position: "absolute",
-    bottom: 12,
     alignSelf: "center",
     color: "#345047",
     fontSize: 9,
+    marginTop: 22,
   },
 });

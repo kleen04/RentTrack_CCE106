@@ -6,13 +6,52 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
+  Alert,
+  ActivityIndicator,
+  Platform,
 } from "react-native";
 import { router } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
 import { Colors } from "../../constants/colors";
+import { useAuth } from "../../context/AuthContext";
+import { verifyAdminLogin } from "../../services/database";
 
 export default function SignIn() {
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const db = useSQLiteContext();
+  const { setAdmin } = useAuth();
+
+  const handleSignIn = async () => {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail || !password) {
+      setErrorMessage("Enter your email address and password.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setErrorMessage("Enter a valid email address.");
+      return;
+    }
+
+    setErrorMessage("");
+    setIsSigningIn(true);
+    try {
+      const admin = await verifyAdminLogin(db, normalizedEmail, password);
+      if (!admin) {
+        setErrorMessage("The email or password is incorrect.");
+        return;
+      }
+      setAdmin(admin);
+      router.replace("/(tabs)");
+    } catch {
+      setErrorMessage("Unable to sign in right now. Please try again.");
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -41,6 +80,11 @@ export default function SignIn() {
           placeholderTextColor={Colors.muted}
           style={styles.input}
           keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          textContentType="emailAddress"
+          value={email}
+          onChangeText={setEmail}
         />
 
         <Text style={styles.inputLabel}>PASSWORD</Text>
@@ -51,6 +95,10 @@ export default function SignIn() {
             placeholderTextColor={Colors.muted}
             style={styles.passwordInput}
             secureTextEntry={!showPassword}
+            autoComplete="current-password"
+            textContentType="password"
+            value={password}
+            onChangeText={setPassword}
           />
 
           <TouchableOpacity
@@ -65,29 +113,41 @@ export default function SignIn() {
 
         <View style={styles.row}>
           <TouchableOpacity
-            style={styles.rememberRow}
-            onPress={() => setRememberMe((prev) => !prev)}
+            style={styles.forgotPasswordButton}
+            onPress={() => {
+              const message =
+                "Please contact the system owner to reset your password.";
+              if (Platform.OS === "web") {
+                globalThis.alert(message);
+              } else {
+                Alert.alert("Password assistance", message);
+              }
+            }}
           >
-            <View
-              style={[
-                styles.checkbox,
-                rememberMe && styles.checkboxChecked,
-              ]}
-            />
-            <Text style={styles.remember}>Remember me</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity>
             <Text style={styles.link}>Forgot password?</Text>
           </TouchableOpacity>
         </View>
 
+        {errorMessage ? (
+          <Text style={styles.errorMessage} accessibilityRole="alert">
+            {errorMessage}
+          </Text>
+        ) : null}
+
         <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.replace("/(tabs)")}
+          style={[styles.button, isSigningIn && styles.buttonDisabled]}
+          onPress={handleSignIn}
+          disabled={isSigningIn}
+          accessibilityRole="button"
         >
-          <Text style={styles.buttonText}>Sign in</Text>
-          <Text style={styles.buttonArrow}>→</Text>
+          {isSigningIn ? (
+            <ActivityIndicator color={Colors.background} />
+          ) : (
+            <>
+              <Text style={styles.buttonText}>Sign in</Text>
+              <Text style={styles.buttonArrow}>→</Text>
+            </>
+          )}
         </TouchableOpacity>
 
         <View style={styles.divider} />
@@ -96,7 +156,7 @@ export default function SignIn() {
           New to RentTrack?{" "}
           <Text
             style={styles.link}
-            onPress={() => router.push("/register")}
+            onPress={() => router.push("/(auth)/register")}
           >
             Create account
           </Text>
@@ -199,34 +259,19 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
 
-  rememberRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  checkbox: {
-    width: 16,
-    height: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 3,
-    backgroundColor: Colors.surface,
-    marginRight: 8,
-  },
-
-  checkboxChecked: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-
-  remember: {
-    color: Colors.muted,
-    fontSize: 11,
+  forgotPasswordButton: {
+    marginLeft: "auto",
   },
 
   link: {
     color: Colors.primary,
     fontWeight: "700",
+  },
+
+  errorMessage: {
+    color: Colors.danger,
+    fontSize: 12,
+    marginTop: 12,
   },
 
   button: {
@@ -238,6 +283,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     marginTop: 22,
+  },
+
+  buttonDisabled: {
+    opacity: 0.7,
   },
 
   buttonText: {
