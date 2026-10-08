@@ -29,7 +29,9 @@ function formatCurrency(value) {
 
 function getRevenueChange(current, previous) {
   if (!previous) {
-    return current > 0 ? "Rental income recorded this month" : "No returned rentals recorded this month";
+    return current > 0
+      ? "Returned rental revenue recorded this month"
+      : "No returned rental revenue recorded this month";
   }
   const difference = current - previous;
   const percentage = Math.round((Math.abs(difference) / previous) * 100);
@@ -220,7 +222,7 @@ export default function Overview() {
 
         <View style={styles.revenueCard}>
           <Text style={styles.revenueLabel}>
-            RENTAL INCOME • {today.toLocaleDateString("en-PH", { month: "long" }).toUpperCase()}
+            COMPLETED RENTAL REVENUE • {today.toLocaleDateString("en-PH", { month: "long" }).toUpperCase()}
           </Text>
 
           <Text style={styles.revenueAmount}>

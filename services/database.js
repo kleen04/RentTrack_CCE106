@@ -1378,6 +1378,7 @@ export async function getMonthlyReportData(db, monthStart) {
       bookings.return_at AS returnAt,
       bookings.total_amount AS totalAmount,
       bookings.status,
+      rental_transactions.released_at AS releasedAt,
       rental_transactions.returned_at AS returnedAt,
       vehicles.id AS vehicleId,
       vehicles.brand AS vehicleBrand,
@@ -1396,7 +1397,7 @@ export async function getMonthlyReportData(db, monthStart) {
     incomeBookings,
     previousIncomeBookings,
     customerCounts,
-    fleetRow,
+    fleetVehicles,
   ] = await Promise.all([
     db.getAllAsync(
       `${reportBookingFields}
@@ -1414,15 +1415,19 @@ export async function getMonthlyReportData(db, monthStart) {
     ),
     db.getAllAsync(
       `${reportBookingFields}
-       WHERE bookings.pickup_at < ? AND bookings.return_at > ?
-         AND bookings.status IN ('RESERVED', 'ACTIVE', 'COMPLETED')`,
+       WHERE rental_transactions.released_at < ?
+         AND COALESCE(rental_transactions.returned_at, ?) > ?
+         AND bookings.status IN ('ACTIVE', 'COMPLETED')`,
+      currentEnd,
       currentEnd,
       currentStart
     ),
     db.getAllAsync(
       `${reportBookingFields}
-       WHERE bookings.pickup_at < ? AND bookings.return_at > ?
-         AND bookings.status IN ('RESERVED', 'ACTIVE', 'COMPLETED')`,
+       WHERE rental_transactions.released_at < ?
+         AND COALESCE(rental_transactions.returned_at, ?) > ?
+         AND bookings.status IN ('ACTIVE', 'COMPLETED')`,
+      previousEnd,
       previousEnd,
       previousStart
     ),
@@ -1450,8 +1455,9 @@ export async function getMonthlyReportData(db, monthStart) {
       currentKey,
       previousKey
     ),
-    db.getFirstAsync(
-      "SELECT COUNT(*) AS fleetCount FROM vehicles WHERE archived_at IS NULL"
+    db.getAllAsync(
+      `SELECT created_at AS createdAt, archived_at AS archivedAt
+       FROM vehicles`
     ),
   ]);
 
@@ -1468,7 +1474,7 @@ export async function getMonthlyReportData(db, monthStart) {
     previousIncomeBookings,
     customerCount: customerCountByMonth[currentKey] || 0,
     previousCustomerCount: customerCountByMonth[previousKey] || 0,
-    fleetCount: fleetRow?.fleetCount || 0,
+    fleetVehicles,
   };
 }
 

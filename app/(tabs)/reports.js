@@ -25,7 +25,7 @@ import {
 
 const REPORT_TABLES = new Set(["bookings", "vehicles", "customers", "rental_transactions"]);
 const REPORT_TYPES = [
-  { id: "income", label: "Income" },
+  { id: "income", label: "Completed rental revenue" },
   { id: "history", label: "Rental history" },
   { id: "reservations", label: "Reservations" },
   { id: "usage", label: "Vehicle usage" },
@@ -69,20 +69,39 @@ function completedRevenue(bookings) {
   );
 }
 
-function calculateUtilization(bookings, monthStart, fleetCount) {
-  if (!fleetCount) return 0;
+function timestamp(value) {
+  if (!value) return Number.NaN;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2} /.test(value)) {
+    return new Date(`${value.replace(" ", "T")}Z`).getTime();
+  }
+  return new Date(value).getTime();
+}
+
+function calculateUtilization(bookings, monthStart, fleetVehicles) {
   const start = monthStart.getTime();
-  const end = new Date(
+  const monthEnd = new Date(
     monthStart.getFullYear(),
     monthStart.getMonth() + 1,
     1
   ).getTime();
+  const now = Date.now();
+  const isCurrentMonth =
+    monthStart.getFullYear() === new Date(now).getFullYear() &&
+    monthStart.getMonth() === new Date(now).getMonth();
+  const end = isCurrentMonth ? Math.min(monthEnd, now) : monthEnd;
   const bookedMilliseconds = bookings.reduce((total, booking) => {
-    const pickup = new Date(booking.pickupAt).getTime();
-    const returned = new Date(booking.returnAt).getTime();
-    return total + Math.max(0, Math.min(returned, end) - Math.max(pickup, start));
+    const released = timestamp(booking.releasedAt);
+    const returned = booking.returnedAt ? timestamp(booking.returnedAt) : end;
+    if (!Number.isFinite(released) || !Number.isFinite(returned)) return total;
+    return total + Math.max(0, Math.min(returned, end) - Math.max(released, start));
   }, 0);
-  const fleetMilliseconds = (end - start) * fleetCount;
+  const fleetMilliseconds = fleetVehicles.reduce((total, vehicle) => {
+    const created = timestamp(vehicle.createdAt);
+    const archived = vehicle.archivedAt ? timestamp(vehicle.archivedAt) : end;
+    if (!Number.isFinite(created) || !Number.isFinite(archived)) return total;
+    return total + Math.max(0, Math.min(archived, end) - Math.max(created, start));
+  }, 0);
+  if (!fleetMilliseconds) return 0;
   return Math.min(100, Math.round((bookedMilliseconds / fleetMilliseconds) * 100));
 }
 
@@ -247,7 +266,7 @@ export default function Reports() {
     ? calculateUtilization(
         currentData.utilizationBookings,
         selectedMonth,
-        currentData.fleetCount
+        currentData.fleetVehicles
       )
     : 0;
   const previousMonth = new Date(
@@ -259,7 +278,7 @@ export default function Reports() {
     ? calculateUtilization(
         currentData.previousUtilizationBookings,
         previousMonth,
-        currentData.fleetCount
+        currentData.fleetVehicles
       )
     : 0;
   const weeklyRevenue = getWeeklyRevenue(incomeBookings, selectedMonth);
@@ -708,8 +727,9 @@ export default function Reports() {
                 color={Colors.muted}
               />
               <Text style={styles.noteText}>
-                Rental income and average booking use completed rentals, with income
-                counted when a return is recorded. Utilization uses booked fleet days.
+                Completed rental revenue is counted when a return is recorded; it is
+                separate from payments received. Utilization uses recorded release-to-return
+                time against fleet availability; the current month is measured to date.
               </Text>
             </View>
           </>
