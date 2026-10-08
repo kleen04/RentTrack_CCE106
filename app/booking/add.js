@@ -168,7 +168,6 @@ export default function AddBooking() {
       ? Math.ceil((returnAt - pickup) / DAY_MS)
       : 0;
 
-  // Quote is computed here so it always updates
   const ratePerKm = Number(DISTANCE_RATE_PER_KM) || 0;
   const km = parseFloat(destinationKm);
   const validKm = Number.isFinite(km) && km > 0;
