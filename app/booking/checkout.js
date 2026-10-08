@@ -16,8 +16,8 @@ import { useAuth } from "../../context/AuthContext";
 import { createPayment, getBookingByCode } from "../../services/database";
 
 const PAYMENT_METHODS = [
-  { id: "GCASH", label: "GCash", subtext: "Demo mobile wallet", icon: "phone-portrait-outline" },
-  { id: "CARD", label: "Card", subtext: "Demo card ending in 4242", icon: "card-outline" },
+  { id: "GCASH", label: "GCash", subtext: "Mobile wallet payment", icon: "phone-portrait-outline" },
+  { id: "CARD", label: "Card", subtext: "Card payment", icon: "card-outline" },
   { id: "CASH", label: "Cash", subtext: "Record payment at counter", icon: "cash-outline" },
 ];
 
@@ -90,7 +90,7 @@ export default function Checkout() {
     if (!booking || isSubmitting || booking.paymentStatus === "PAID") return;
     setIsSubmitting(true);
     setCheckoutError("");
-    const reference = `DEMO-${Date.now().toString().slice(-8)}`;
+    const reference = `PAY-${Date.now().toString().slice(-8)}`;
     try {
       await createPayment(db, {
         bookingId: booking.id,
@@ -100,7 +100,7 @@ export default function Checkout() {
       setSuccessReference(reference);
       await loadBooking();
     } catch (error) {
-      setCheckoutError(error?.message || "The demo checkout could not be completed.");
+      setCheckoutError(error?.message || "The payment could not be completed.");
     } finally {
       setIsSubmitting(false);
     }
@@ -157,14 +157,6 @@ export default function Checkout() {
           <View style={styles.headerCopy}>
             <Text style={styles.eyebrow}>PAYMENT CHECKOUT</Text>
             <Text style={styles.title}>Complete payment</Text>
-          </View>
-        </View>
-
-        <View style={styles.notice}>
-          <Ionicons name="shield-checkmark-outline" size={19} color={Colors.primary} />
-          <View style={styles.noticeCopy}>
-            <Text style={styles.noticeTitle}>Prototype transaction</Text>
-            <Text style={styles.noticeText}>No real payment will be processed.</Text>
           </View>
         </View>
 
@@ -261,7 +253,7 @@ export default function Checkout() {
         ) : (
           <>
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Choose a demo payment method</Text>
+              <Text style={styles.sectionTitle}>Choose a payment method</Text>
               {PAYMENT_METHODS.map((method) => {
                 const selected = selectedMethod === method.id;
                 return (
@@ -303,8 +295,8 @@ export default function Checkout() {
               <Ionicons name="lock-closed-outline" size={16} color={Colors.background} />
               <Text style={styles.confirmText}>
                 {isSubmitting
-                  ? "Processing demo payment…"
-                  : `Demo successful checkout · ${formatAmount(amountDue)}`}
+                  ? "Processing payment…"
+                  : `Complete payment · ${formatAmount(amountDue)}`}
               </Text>
             </TouchableOpacity>
             <Text style={styles.disclaimer}>
@@ -349,10 +341,6 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1 },
   eyebrow: { color: Colors.primary, fontSize: 8, fontWeight: "800", letterSpacing: 1 },
   title: { color: Colors.white, fontSize: 22, fontWeight: "900", marginTop: 3 },
-  notice: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#132A16", borderWidth: 1, borderColor: "#2E4A1F", borderRadius: 12, padding: 13, marginBottom: 14 },
-  noticeCopy: { flex: 1 },
-  noticeTitle: { color: Colors.primary, fontSize: 10, fontWeight: "800" },
-  noticeText: { color: Colors.muted, fontSize: 9, marginTop: 3 },
   card: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 14, padding: 15, marginBottom: 13 },
   bookingHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   sectionLabel: { color: Colors.primary, fontSize: 8, fontWeight: "800", letterSpacing: 0.8 },

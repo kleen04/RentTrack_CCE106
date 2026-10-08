@@ -346,7 +346,7 @@ export default function Reports() {
             : `${vehicleUsage.length} vehicles ranked for ${totalUsageDays} rented fleet days.`;
     Alert.alert(
       "Print / PDF preview",
-      `${heading}\n${reportStartDate} to ${reportEndDate}\n${summary}\n\nPrototype preview only — no file is exported.`
+      `${heading}\n${reportStartDate} to ${reportEndDate}\n${summary}\n\nPreview only — no file is exported.`
     );
   };
 
@@ -698,7 +698,7 @@ export default function Reports() {
                 <Ionicons name="print-outline" size={15} color={Colors.background} />
                 <Text style={styles.printPreviewText}>Print / PDF preview</Text>
               </TouchableOpacity>
-              <Text style={styles.reportHint}>Prototype preview only; it does not export a real file.</Text>
+              <Text style={styles.reportHint}>Preview only; no file is exported.</Text>
             </View>
 
             <View style={styles.note}>

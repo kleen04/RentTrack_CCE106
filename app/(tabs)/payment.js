@@ -311,7 +311,7 @@ export default function Payments() {
             </Text>
             <Text style={styles.emptyCopy}>
               {activeFilter === "All"
-                ? `No payments were recorded in ${selectedMonthLabel}. Completed demo checkouts will appear here with their booking, payment method, and reference.`
+                ? `No payments were recorded in ${selectedMonthLabel}. Completed payments will appear here with their booking, payment method, and reference.`
                 : `There are no ${activeFilter.toLowerCase()} payments in ${selectedMonthLabel}. Try another status filter or return to all transactions.`}
             </Text>
             {activeFilter === "All" && unpaidBookingCount > 0 ? (
@@ -328,7 +328,7 @@ export default function Payments() {
           </View>
         )}
         <Text style={styles.disclaimer}>
-          Prototype ledger · transactions are local demo records only.
+          Transactions are stored locally.
         </Text>
       </ScrollView>
     </View>

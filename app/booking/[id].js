@@ -16,11 +16,14 @@ import { addDatabaseChangeListener, useSQLiteContext } from "expo-sqlite";
 import { Colors } from "../../constants/colors";
 import { useAuth } from "../../context/AuthContext";
 import {
+  extendBooking,
   getBookingByCode,
   releaseBooking,
   returnBooking,
+  updateBooking,
   updateBookingStatus,
 } from "../../services/database";
+import { calculateRentalQuote } from "../../services/pricing";
 
 const STATUS_COLORS = {
   RESERVED: Colors.warning,
@@ -44,6 +47,25 @@ function formatAmount(value) {
   return `₱${Number(value || 0).toLocaleString("en-PH")}`;
 }
 
+function dateInputValue(value) {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateInput(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day, 9);
+  return date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+    ? date
+    : null;
+}
+
 export default function BookingDetails() {
   const params = useLocalSearchParams();
   const bookingCode = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -60,6 +82,11 @@ export default function BookingDetails() {
     emergencyContact: false,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [editingMode, setEditingMode] = useState(null);
+  const [editPickupDate, setEditPickupDate] = useState("");
+  const [editReturnDate, setEditReturnDate] = useState("");
+  const [editDestination, setEditDestination] = useState("");
+  const [editDestinationKm, setEditDestinationKm] = useState("");
 
   useEffect(() => {
     let isActive = true;
@@ -104,6 +131,52 @@ export default function BookingDetails() {
     }
   };
 
+  const startBookingEdit = (mode) => {
+    setEditPickupDate(dateInputValue(booking.pickupAt));
+    setEditReturnDate(dateInputValue(booking.returnAt));
+    setEditDestination(booking.destination || "");
+    setEditDestinationKm(String(booking.destinationKm || ""));
+    setActionError("");
+    setEditingMode(mode);
+  };
+
+  const saveBookingEdit = async () => {
+    const pickupAt = parseDateInput(editPickupDate);
+    const returnAt = parseDateInput(editReturnDate);
+    if (!returnAt || (editingMode === "RESERVED" && !pickupAt)) {
+      setActionError("Enter valid rental dates using YYYY-MM-DD.");
+      return;
+    }
+    if (editingMode === "RESERVED" && !editDestination.trim()) {
+      setActionError("Enter a destination for this rental.");
+      return;
+    }
+    const destinationKm = Number(editDestinationKm);
+    if (
+      editingMode === "RESERVED" &&
+      (!editDestinationKm.trim() ||
+        !Number.isFinite(destinationKm) ||
+        destinationKm <= 0)
+    ) {
+      setActionError("Enter a valid one-way destination distance in kilometers.");
+      return;
+    }
+
+    await runAction(async () => {
+      if (editingMode === "RESERVED") {
+        await updateBooking(db, booking.id, {
+          pickupAt,
+          returnAt,
+          destination: editDestination,
+          destinationKm,
+        });
+      } else if (editingMode === "ACTIVE") {
+        await extendBooking(db, booking.id, returnAt);
+      }
+      setEditingMode(null);
+    });
+  };
+
   if (!admin) return <Redirect href="/(auth)/signin" />;
 
   if (isLoading) {
@@ -133,6 +206,32 @@ export default function BookingDetails() {
   const rentalAmount = Math.max(0, Number(booking.totalAmount || 0) - distanceCharge);
   const paidAmount = Number(booking.paidAmount || 0);
   const amountDue = Math.max(0, Number(booking.totalAmount || 0) - paidAmount);
+  const editedPickup = editingMode === "RESERVED"
+    ? parseDateInput(editPickupDate)
+    : new Date(booking.pickupAt);
+  const editedReturn = parseDateInput(editReturnDate);
+  const editedDistance = editingMode === "RESERVED"
+    ? Number(editDestinationKm)
+    : distance;
+  const editedDays =
+    editedPickup && editedReturn && editedReturn > editedPickup
+      ? Math.ceil((editedReturn - editedPickup) / (24 * 60 * 60 * 1000))
+      : 0;
+  const editedQuote =
+    editedDays > 0 &&
+    Number.isFinite(editedDistance) &&
+    editedDistance >= 0 &&
+    Number.isFinite(Number(booking.dailyRate))
+      ? calculateRentalQuote(
+          booking.dailyRate,
+          editedDays,
+          editedDistance,
+          distanceRate
+        )
+      : null;
+  const editAmountDue = editedQuote
+    ? Math.max(0, editedQuote.totalAmount - paidAmount)
+    : null;
   const statusColor = STATUS_COLORS[booking.status] || Colors.muted;
   const displayStatus = booking.status === "RESERVED"
     ? "CONFIRMED"
@@ -209,6 +308,123 @@ export default function BookingDetails() {
           <InfoRow icon="arrow-up-circle-outline" label="PICKUP" value={formatDate(booking.pickupAt)} />
           <InfoRow icon="return-down-back-outline" label="RETURN" value={formatDate(booking.returnAt)} last />
         </View>
+        {booking.status === "RESERVED" || booking.status === "ACTIVE" ? (
+          <>
+            <TouchableOpacity
+              style={[styles.editBookingButton, isSaving && styles.actionDisabled]}
+              onPress={() => startBookingEdit(booking.status)}
+              disabled={isSaving}
+            >
+              <Ionicons name="calendar-outline" size={16} color={Colors.background} />
+              <Text style={styles.editBookingButtonText}>
+                {booking.status === "RESERVED"
+                  ? "Change dates / destination"
+                  : "Extend rental"}
+              </Text>
+            </TouchableOpacity>
+            {editingMode ? (
+              <View style={styles.editBookingCard}>
+                <Text style={styles.workflowTitle}>
+                  {editingMode === "RESERVED" ? "UPDATE RESERVATION" : "EXTEND RENTAL"}
+                </Text>
+                {editingMode === "RESERVED" ? (
+                  <>
+                    <View style={styles.dateFields}>
+                      <View style={styles.dateField}>
+                        <Text style={styles.editFieldLabel}>PICKUP DATE</Text>
+                        <TextInput
+                          value={editPickupDate}
+                          onChangeText={setEditPickupDate}
+                          placeholder="YYYY-MM-DD"
+                          placeholderTextColor={Colors.muted}
+                          style={styles.editInput}
+                          autoCapitalize="none"
+                        />
+                      </View>
+                      <View style={styles.dateField}>
+                        <Text style={styles.editFieldLabel}>RETURN DATE</Text>
+                        <TextInput
+                          value={editReturnDate}
+                          onChangeText={setEditReturnDate}
+                          placeholder="YYYY-MM-DD"
+                          placeholderTextColor={Colors.muted}
+                          style={styles.editInput}
+                          autoCapitalize="none"
+                        />
+                      </View>
+                    </View>
+                    <Text style={styles.editFieldLabel}>DESTINATION</Text>
+                    <TextInput
+                      value={editDestination}
+                      onChangeText={setEditDestination}
+                      placeholder="Destination"
+                      placeholderTextColor={Colors.muted}
+                      style={styles.editInput}
+                    />
+                    <Text style={styles.editFieldLabel}>ONE-WAY DISTANCE (KM)</Text>
+                    <TextInput
+                      value={editDestinationKm}
+                      onChangeText={setEditDestinationKm}
+                      placeholder="Distance in kilometers"
+                      placeholderTextColor={Colors.muted}
+                      style={styles.editInput}
+                      keyboardType="decimal-pad"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.muted}>
+                      Current return date: {formatDate(booking.returnAt)}
+                    </Text>
+                    <Text style={styles.editFieldLabel}>NEW RETURN DATE</Text>
+                    <TextInput
+                      value={editReturnDate}
+                      onChangeText={setEditReturnDate}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={Colors.muted}
+                      style={styles.editInput}
+                      autoCapitalize="none"
+                    />
+                  </>
+                )}
+                {editedQuote ? (
+                  <View style={styles.editQuote}>
+                    <Text style={styles.editQuoteText}>
+                      Updated rental total · {formatAmount(editedQuote.totalAmount)}
+                    </Text>
+                    {paidAmount > 0 ? (
+                      <Text style={styles.editQuoteText}>
+                        Paid {formatAmount(paidAmount)} · remaining balance {formatAmount(editAmountDue)}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
+                {actionError ? <Text style={styles.editError}>{actionError}</Text> : null}
+                <View style={styles.editActions}>
+                  <TouchableOpacity
+                    style={styles.cancelEditButton}
+                    onPress={() => {
+                      setEditingMode(null);
+                      setActionError("");
+                    }}
+                    disabled={isSaving}
+                  >
+                    <Text style={styles.cancelEditText}>Keep current details</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.saveEditButton, isSaving && styles.actionDisabled]}
+                    onPress={() => void saveBookingEdit()}
+                    disabled={isSaving}
+                  >
+                    <Text style={styles.saveEditText}>
+                      {isSaving ? "Saving…" : "Save changes"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+          </>
+        ) : null}
 
         {booking.status === "CANCELLED" && booking.processedBy ? (
           <Text style={styles.muted}>Cancellation processed by {booking.processedBy}</Text>
@@ -464,6 +680,21 @@ const styles = StyleSheet.create({
   infoValue: { color: Colors.white, fontSize: 10, fontWeight: "600", marginTop: 5, marginLeft: 21, lineHeight: 15 },
   destination: { color: Colors.white, fontSize: 11, fontWeight: "700", paddingTop: 8, marginBottom: 5 },
   muted: { color: Colors.muted, fontSize: 9, lineHeight: 14 },
+  editBookingButton: { minHeight: 43, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: Colors.primary, borderRadius: 9, marginTop: 12 },
+  editBookingButtonText: { color: Colors.background, fontSize: 9, fontWeight: "900" },
+  editBookingCard: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 12, padding: 13, marginTop: 10 },
+  dateFields: { flexDirection: "row", gap: 9 },
+  dateField: { flex: 1 },
+  editFieldLabel: { color: "#B9C8C1", fontSize: 8, fontWeight: "800", letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
+  editInput: { minHeight: 43, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 11, color: Colors.white, fontSize: 10, backgroundColor: Colors.surface },
+  editQuote: { backgroundColor: "#14251B", borderRadius: 8, padding: 10, marginTop: 12, gap: 5 },
+  editQuoteText: { color: "#D7E4DB", fontSize: 9, fontWeight: "700" },
+  editError: { color: Colors.danger, fontSize: 9, lineHeight: 14, marginTop: 10 },
+  editActions: { flexDirection: "row", gap: 8, marginTop: 13 },
+  cancelEditButton: { minHeight: 40, flex: 1, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: Colors.border, borderRadius: 8 },
+  cancelEditText: { color: Colors.white, fontSize: 8, fontWeight: "700", textAlign: "center" },
+  saveEditButton: { minHeight: 40, flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.primary, borderRadius: 8 },
+  saveEditText: { color: Colors.background, fontSize: 9, fontWeight: "900" },
   priceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 9, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: Colors.border },
   priceLabel: { flex: 1, color: Colors.muted, fontSize: 9, lineHeight: 13 },
   priceValue: { color: Colors.white, fontSize: 10, fontWeight: "700" },

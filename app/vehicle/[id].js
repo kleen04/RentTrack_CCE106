@@ -182,6 +182,19 @@ export default function VehicleDetails() {
         <Text style={styles.eyebrow}>FLEET VEHICLE · RT-{String(vehicle.id).padStart(3, "0")}</Text>
         <Text style={styles.title}>{vehicle.brand} {vehicle.name}</Text>
         <Text style={styles.subtitle}>{vehicle.vehicleType || "Vehicle"} · Added {formatDate(vehicle.createdAt)}</Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.editButton}
+          onPress={() =>
+            router.push({
+              pathname: "/vehicle/add",
+              params: { id: String(vehicle.id) },
+            })
+          }
+        >
+          <Ionicons name="create-outline" size={17} color={Colors.background} />
+          <Text style={styles.editButtonText}>Edit vehicle</Text>
+        </TouchableOpacity>
 
         <View style={styles.summary}>
           <View style={styles.summaryCell}>
@@ -386,6 +399,8 @@ const styles = StyleSheet.create({
   eyebrow: { color: Colors.primary, fontSize: 8, fontWeight: "800", letterSpacing: 1 },
   title: { color: Colors.white, fontSize: 26, fontWeight: "900", marginTop: 7 },
   subtitle: { color: Colors.muted, fontSize: 10, marginTop: 5 },
+  editButton: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, backgroundColor: Colors.primary, borderRadius: 9, marginTop: 14 },
+  editButtonText: { color: Colors.background, fontSize: 10, fontWeight: "900" },
   summary: { flexDirection: "row", backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 12, padding: 14, marginTop: 18 },
   summaryCell: { flex: 1 },
   summaryDivider: { width: 1, backgroundColor: Colors.border, marginHorizontal: 13 },

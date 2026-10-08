@@ -90,14 +90,14 @@ export default function Overview() {
       if (Platform.OS === "web") {
         globalThis.alert("The sample records have been restored.");
       } else {
-        Alert.alert("Demo data ready", "The sample records have been restored.");
+        Alert.alert("Sample records restored", "The sample records have been restored.");
       }
     } catch (error) {
       const message = error?.message || "Please try again.";
       if (Platform.OS === "web") {
-        globalThis.alert(`Could not reset demo data: ${message}`);
+        globalThis.alert(`Could not restore sample records: ${message}`);
       } else {
-        Alert.alert("Could not reset demo data", message);
+        Alert.alert("Could not restore sample records", message);
       }
     } finally {
       setIsResettingDemo(false);
@@ -106,18 +106,18 @@ export default function Overview() {
 
   const confirmDemoDataReset = () => {
     const message =
-      "This will replace all saved vehicles, customers, bookings, and payments with the sample demo data. This cannot be undone.";
+      "This will replace all saved vehicles, customers, bookings, and payments with the sample records. This cannot be undone.";
     if (Platform.OS === "web") {
-      if (globalThis.confirm(`Reset demo data?\n\n${message}`)) {
+      if (globalThis.confirm(`Restore sample records?\n\n${message}`)) {
         resetDemoData();
       }
       return;
     }
 
-    Alert.alert("Reset demo data?", message, [
+    Alert.alert("Restore sample records?", message, [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Reset demo data",
+        text: "Restore sample records",
         style: "destructive",
         onPress: resetDemoData,
       },
@@ -405,11 +405,11 @@ export default function Overview() {
           onPress={confirmDemoDataReset}
           disabled={isResettingDemo}
           accessibilityRole="button"
-          accessibilityLabel="Reset demo data"
+          accessibilityLabel="Restore sample records"
         >
           <Ionicons name="refresh-outline" size={17} color={Colors.warning} />
           <Text style={styles.resetDemoButtonText}>
-            {isResettingDemo ? "Resetting demo data..." : "Reset demo data"}
+            {isResettingDemo ? "Restoring sample records..." : "Restore sample records"}
           </Text>
         </TouchableOpacity>
 

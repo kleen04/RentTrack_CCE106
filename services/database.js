@@ -3,7 +3,7 @@ import { vehicles } from "../data/vehicles";
 import * as Crypto from "expo-crypto";
 import { calculateRentalQuote, DISTANCE_RATE_PER_KM } from "./pricing";
 
-const DATABASE_VERSION = 11;
+const DATABASE_VERSION = 12;
 
 function generateBookingCode() {
   return `RT-${Date.now().toString().slice(-8)}`;
@@ -318,6 +318,16 @@ export async function initializeDatabase(db) {
     currentVersion = 11;
   }
 
+  if (currentVersion < 12) {
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(`
+        ALTER TABLE customers ADD COLUMN archived_at TEXT;
+        PRAGMA user_version = 12;
+      `);
+    });
+    currentVersion = 12;
+  }
+
   if (currentVersion > DATABASE_VERSION) {
     throw new Error("RentTrack database version is newer than this app supports.");
   }
@@ -625,7 +635,13 @@ export async function setVehicleMaintenance(db, vehicleId, isUnderMaintenance) {
   }
 }
 
-async function ensureVehicleAvailableForRange(db, vehicleId, pickupAt, returnAt) {
+async function ensureVehicleAvailableForRange(
+  db,
+  vehicleId,
+  pickupAt,
+  returnAt,
+  excludeBookingId = null
+) {
   const vehicle = await db.getFirstAsync(
     "SELECT status FROM vehicles WHERE id = ? AND archived_at IS NULL",
     Number(vehicleId)
@@ -638,10 +654,13 @@ async function ensureVehicleAvailableForRange(db, vehicleId, pickupAt, returnAt)
     `SELECT id FROM bookings
      WHERE vehicle_id = ?
        AND status IN ('RESERVED', 'ACTIVE')
+       AND (? IS NULL OR id <> ?)
        AND ? < return_at
        AND ? > pickup_at
      LIMIT 1`,
     Number(vehicleId),
+    excludeBookingId,
+    excludeBookingId,
     new Date(pickupAt).toISOString(),
     new Date(returnAt).toISOString()
   );
@@ -698,20 +717,66 @@ export async function removeVehicleFromFleet(db, vehicleId) {
   });
 }
 
-export async function createVehicle(db, vehicle) {
-  const result = await db.runAsync(
-    `INSERT INTO vehicles
-      (brand, model, vehicle_type, plate_number, daily_rate, image_uri)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    vehicle.brand.trim(),
-    vehicle.model.trim(),
-    vehicle.vehicleType.trim(),
-    vehicle.plateNumber.trim(),
-    vehicle.dailyRate,
-    vehicle.imageUri ?? null
+async function ensureUniqueVehiclePlate(db, plateNumber, exceptVehicleId = null) {
+  const existingVehicle = await db.getFirstAsync(
+    `SELECT id FROM vehicles
+     WHERE UPPER(TRIM(plate_number)) = UPPER(TRIM(?))
+       AND (? IS NULL OR id <> ?)
+     LIMIT 1`,
+    plateNumber,
+    exceptVehicleId,
+    exceptVehicleId
   );
 
-  return result.lastInsertRowId;
+  if (existingVehicle) {
+    throw new Error("A vehicle with this plate number already exists.");
+  }
+}
+
+export async function createVehicle(db, vehicle) {
+  let vehicleId;
+  await db.withTransactionAsync(async () => {
+    await ensureUniqueVehiclePlate(db, vehicle.plateNumber);
+    const result = await db.runAsync(
+      `INSERT INTO vehicles
+        (brand, model, vehicle_type, plate_number, daily_rate, image_uri, image_asset_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      vehicle.brand.trim(),
+      vehicle.model.trim(),
+      vehicle.vehicleType.trim(),
+      vehicle.plateNumber.trim().toUpperCase(),
+      vehicle.dailyRate,
+      vehicle.imageUri ?? null,
+      vehicle.imageAssetKey ?? null
+    );
+    vehicleId = result.lastInsertRowId;
+  });
+
+  return vehicleId;
+}
+
+export async function updateVehicle(db, vehicleId, vehicle) {
+  await db.withTransactionAsync(async () => {
+    await ensureUniqueVehiclePlate(db, vehicle.plateNumber, Number(vehicleId));
+    const result = await db.runAsync(
+      `UPDATE vehicles
+       SET brand = ?, model = ?, vehicle_type = ?, plate_number = ?,
+           daily_rate = ?, image_uri = ?, image_asset_key = ?
+       WHERE id = ? AND archived_at IS NULL`,
+      vehicle.brand.trim(),
+      vehicle.model.trim(),
+      vehicle.vehicleType.trim(),
+      vehicle.plateNumber.trim().toUpperCase(),
+      vehicle.dailyRate,
+      vehicle.imageUri ?? null,
+      vehicle.imageAssetKey ?? null,
+      Number(vehicleId)
+    );
+
+    if (result.changes !== 1) {
+      throw new Error("This vehicle is no longer in the active fleet.");
+    }
+  });
 }
 
 export function getCustomers(db) {
@@ -726,6 +791,7 @@ export function getCustomers(db) {
      LEFT JOIN bookings
        ON bookings.customer_id = customers.id
        AND bookings.status IN ('RESERVED', 'ACTIVE', 'COMPLETED')
+     WHERE customers.archived_at IS NULL
      GROUP BY customers.id
      ORDER BY customers.name`
   );
@@ -747,7 +813,7 @@ export function getCustomerById(db, id) {
      LEFT JOIN bookings
        ON bookings.customer_id = customers.id
        AND bookings.status IN ('RESERVED', 'ACTIVE', 'COMPLETED')
-     WHERE customers.id = ?
+     WHERE customers.id = ? AND customers.archived_at IS NULL
      GROUP BY customers.id`,
     Number(id)
   );
@@ -762,6 +828,49 @@ export async function createCustomer(db, customer) {
   );
 
   return result.lastInsertRowId;
+}
+
+export async function updateCustomer(db, customerId, customer) {
+  const result = await db.runAsync(
+    `UPDATE customers
+     SET name = ?, phone = ?, email = ?
+     WHERE id = ? AND archived_at IS NULL`,
+    customer.name.trim(),
+    customer.phone?.trim() || null,
+    customer.email?.trim() || null,
+    Number(customerId)
+  );
+
+  if (result.changes !== 1) {
+    throw new Error("This customer record is no longer active.");
+  }
+}
+
+export async function archiveCustomer(db, customerId) {
+  await db.withTransactionAsync(async () => {
+    const customer = await db.getFirstAsync(
+      `SELECT id FROM customers
+       WHERE id = ? AND archived_at IS NULL`,
+      Number(customerId)
+    );
+    if (!customer) throw new Error("This customer record is no longer active.");
+
+    const activeBooking = await db.getFirstAsync(
+      `SELECT id FROM bookings
+       WHERE customer_id = ? AND status IN ('ACTIVE', 'RESERVED')
+       LIMIT 1`,
+      Number(customerId)
+    );
+    if (activeBooking) {
+      throw new Error("Customers with active or reserved bookings cannot be archived.");
+    }
+
+    await db.runAsync(
+      "UPDATE customers SET archived_at = ? WHERE id = ? AND archived_at IS NULL",
+      new Date().toISOString(),
+      Number(customerId)
+    );
+  });
 }
 
 export async function createBooking(db, booking) {
@@ -838,6 +947,162 @@ export async function createBooking(db, booking) {
   });
 
   return bookingId;
+}
+
+function validateBookingDates(pickupAt, returnAt, requireFuturePickup) {
+  const pickup = new Date(pickupAt);
+  const returned = new Date(returnAt);
+  if (
+    Number.isNaN(pickup.getTime()) ||
+    Number.isNaN(returned.getTime()) ||
+    returned <= pickup
+  ) {
+    throw new Error("Choose valid rental dates and make sure the return is after pickup.");
+  }
+
+  if (requireFuturePickup) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (pickup < today) {
+      throw new Error("The pickup date must be today or later.");
+    }
+  }
+
+  return { pickup, returned };
+}
+
+function quoteBookingTotal(dailyRate, pickupAt, returnAt, destinationKm, distanceRate) {
+  const distance = Number(destinationKm);
+  const ratePerKm = Number(distanceRate);
+  if (!Number.isFinite(distance) || distance <= 0) {
+    throw new Error("Enter a valid one-way destination distance in kilometers.");
+  }
+  if (!Number.isFinite(ratePerKm) || ratePerKm <= 0) {
+    throw new Error("The destination distance rate must be greater than zero.");
+  }
+
+  const rentalDays = Math.ceil(
+    (returnAt.getTime() - pickupAt.getTime()) / (24 * 60 * 60 * 1000)
+  );
+  return calculateRentalQuote(dailyRate, rentalDays, distance, ratePerKm).totalAmount;
+}
+
+export async function updateBooking(db, bookingId, changes) {
+  await db.withTransactionAsync(async () => {
+    const booking = await db.getFirstAsync(
+      `SELECT
+        vehicle_id AS vehicleId,
+        pickup_at AS pickupAt,
+        return_at AS returnAt,
+        destination_km AS destinationKm,
+        distance_rate_per_km AS distanceRatePerKm,
+        bookings.status AS status,
+        vehicles.daily_rate AS dailyRate
+       FROM bookings
+       JOIN vehicles ON vehicles.id = bookings.vehicle_id
+       WHERE bookings.id = ? AND vehicles.archived_at IS NULL`,
+      Number(bookingId)
+    );
+    if (!booking) throw new Error("This booking could not be found.");
+    if (booking.status !== "RESERVED") {
+      throw new Error("Only reserved bookings can have their dates or destination changed.");
+    }
+
+    const { pickup, returned } = validateBookingDates(
+      changes.pickupAt,
+      changes.returnAt,
+      true
+    );
+    const destination = changes.destination?.trim();
+    if (!destination) throw new Error("Enter a destination for this rental.");
+
+    await ensureVehicleAvailableForRange(
+      db,
+      booking.vehicleId,
+      pickup,
+      returned,
+      Number(bookingId)
+    );
+    const totalAmount = quoteBookingTotal(
+      booking.dailyRate,
+      pickup,
+      returned,
+      changes.destinationKm,
+      booking.distanceRatePerKm
+    );
+
+    await db.runAsync(
+      `UPDATE bookings
+       SET pickup_at = ?, return_at = ?, destination = ?,
+           destination_km = ?, total_amount = ?
+       WHERE id = ? AND status = 'RESERVED'`,
+      pickup.toISOString(),
+      returned.toISOString(),
+      destination,
+      Number(changes.destinationKm),
+      totalAmount,
+      Number(bookingId)
+    );
+    await syncVehicleStatus(db, booking.vehicleId);
+  });
+}
+
+export async function extendBooking(db, bookingId, newReturnAt) {
+  await db.withTransactionAsync(async () => {
+    const booking = await db.getFirstAsync(
+      `SELECT
+        vehicle_id AS vehicleId,
+        pickup_at AS pickupAt,
+        return_at AS returnAt,
+        destination_km AS destinationKm,
+        distance_rate_per_km AS distanceRatePerKm,
+        bookings.status AS status,
+        vehicles.daily_rate AS dailyRate
+       FROM bookings
+       JOIN vehicles ON vehicles.id = bookings.vehicle_id
+       WHERE bookings.id = ? AND vehicles.archived_at IS NULL`,
+      Number(bookingId)
+    );
+    if (!booking) throw new Error("This booking could not be found.");
+    if (booking.status !== "ACTIVE") {
+      throw new Error("Only active rentals can be extended.");
+    }
+
+    const pickup = new Date(booking.pickupAt);
+    const currentReturn = new Date(booking.returnAt);
+    const returned = new Date(newReturnAt);
+    if (Number.isNaN(returned.getTime()) || returned <= currentReturn) {
+      throw new Error("Choose an extension date later than the current return date.");
+    }
+    if (Number.isNaN(pickup.getTime())) {
+      throw new Error("The booking pickup date is invalid; the rental cannot be extended.");
+    }
+
+    await ensureVehicleAvailableForRange(
+      db,
+      booking.vehicleId,
+      pickup,
+      returned,
+      Number(bookingId)
+    );
+    const totalAmount = quoteBookingTotal(
+      booking.dailyRate,
+      pickup,
+      returned,
+      booking.destinationKm,
+      booking.distanceRatePerKm
+    );
+
+    await db.runAsync(
+      `UPDATE bookings
+       SET return_at = ?, total_amount = ?
+       WHERE id = ? AND status = 'ACTIVE'`,
+      returned.toISOString(),
+      totalAmount,
+      Number(bookingId)
+    );
+    await syncVehicleStatus(db, booking.vehicleId);
+  });
 }
 
 export async function updateBookingStatus(

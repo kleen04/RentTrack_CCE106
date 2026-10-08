@@ -3,7 +3,11 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-nati
 import { router, useLocalSearchParams } from "expo-router";
 import { addDatabaseChangeListener, useSQLiteContext } from "expo-sqlite";
 import { Colors } from "../../constants/colors";
-import { getBookingsForCustomerId, getCustomerById } from "../../services/database";
+import {
+  archiveCustomer,
+  getBookingsForCustomerId,
+  getCustomerById,
+} from "../../services/database";
 
 function formatDate(value) {
   return new Date(value).toLocaleString("en-PH", {
@@ -23,6 +27,9 @@ export default function CustomerDetails() {
   const [bookings, setBookings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -59,6 +66,27 @@ export default function CustomerDetails() {
     else router.replace("/(tabs)/customers");
   };
 
+  const openEditCustomer = () => {
+    router.push({
+      pathname: "/customer/add",
+      params: { id: String(customer.id) },
+    });
+  };
+
+  const handleArchiveCustomer = async () => {
+    if (isArchiving) return;
+    setIsArchiving(true);
+    setActionError("");
+    try {
+      await archiveCustomer(db, customer.id);
+      router.replace("/(tabs)/customers");
+    } catch (error) {
+      setActionError(error?.message || "Customer could not be archived.");
+      setConfirmArchive(false);
+      setIsArchiving(false);
+    }
+  };
+
   if (isLoading || loadError || !customer) {
     return (
       <View style={styles.container}>
@@ -83,6 +111,13 @@ export default function CustomerDetails() {
         <Text style={styles.label}>CUSTOMER RECORD</Text>
         <Text style={styles.title}>{customer.name}</Text>
         <Text style={styles.subtitle}>Customer details and rental history.</Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.editButton}
+          onPress={openEditCustomer}
+        >
+          <Text style={styles.editButtonText}>Edit customer</Text>
+        </TouchableOpacity>
 
         <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
@@ -177,6 +212,64 @@ export default function CustomerDetails() {
             <Text style={styles.emptyText}>Bookings made by this customer in either view will appear here.</Text>
           </View>
         )}
+        {confirmArchive ? (
+          <View style={styles.confirmArchiveCard}>
+            <Text style={styles.archiveTitle}>Archive this customer?</Text>
+            <Text style={styles.archiveCopy}>
+              {customer.name} will be hidden from customer lists and new bookings.
+              Rental history will be preserved.
+            </Text>
+            <View style={styles.archiveActions}>
+              <TouchableOpacity
+                style={styles.cancelArchiveButton}
+                onPress={() => setConfirmArchive(false)}
+                disabled={isArchiving}
+              >
+                <Text style={styles.cancelArchiveText}>Keep customer</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmArchiveButton}
+                onPress={handleArchiveCustomer}
+                disabled={isArchiving}
+              >
+                <Text style={styles.confirmArchiveText}>
+                  {isArchiving ? "Archiving…" : "Archive customer"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityState={{
+              disabled: bookings.some((booking) =>
+                ["ACTIVE", "RESERVED"].includes(booking.status)
+              ),
+            }}
+            style={[
+              styles.archiveButton,
+              bookings.some((booking) =>
+                ["ACTIVE", "RESERVED"].includes(booking.status)
+              ) && styles.archiveButtonDisabled,
+            ]}
+            onPress={() => {
+              setActionError("");
+              setConfirmArchive(true);
+            }}
+            disabled={
+              isArchiving ||
+              bookings.some((booking) =>
+                ["ACTIVE", "RESERVED"].includes(booking.status)
+              )
+            }
+          >
+            <Text style={styles.archiveButtonText}>Archive customer</Text>
+          </TouchableOpacity>
+        )}
+        <Text style={styles.archiveHint}>
+          Customers with active or reserved bookings cannot be archived.
+        </Text>
+        {actionError ? <Text style={styles.actionError}>{actionError}</Text> : null}
       </ScrollView>
     </View>
   );
@@ -189,6 +282,8 @@ const styles = StyleSheet.create({
   label: { color: Colors.primary, fontSize: 9, fontWeight: "800", letterSpacing: 0.8 },
   title: { color: Colors.white, fontSize: 27, fontWeight: "900", marginTop: 6 },
   subtitle: { color: Colors.muted, fontSize: 10, lineHeight: 15, marginTop: 6 },
+  editButton: { minHeight: 42, alignItems: "center", justifyContent: "center", backgroundColor: Colors.primary, borderRadius: 9, marginTop: 15 },
+  editButtonText: { color: Colors.background, fontSize: 10, fontWeight: "900" },
   summaryCard: { backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.border, borderRadius: 13, padding: 15, marginTop: 20 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, paddingVertical: 5 },
   summaryLabel: { color: Colors.muted, fontSize: 8, fontWeight: "800", letterSpacing: 0.7 },
@@ -221,4 +316,17 @@ const styles = StyleSheet.create({
   emptyText: { color: Colors.muted, fontSize: 9, lineHeight: 14, marginTop: 6 },
   message: { color: Colors.muted, marginTop: 15, fontSize: 11 },
   error: { color: Colors.warning, marginTop: 15, fontSize: 11 },
+  confirmArchiveCard: { backgroundColor: "#211513", borderWidth: 1, borderColor: "#75423A", borderRadius: 11, padding: 13, marginTop: 22 },
+  archiveTitle: { color: Colors.white, fontSize: 12, fontWeight: "800" },
+  archiveCopy: { color: "#C7A7A2", fontSize: 9, lineHeight: 14, marginTop: 6 },
+  archiveActions: { flexDirection: "row", gap: 8, marginTop: 12 },
+  cancelArchiveButton: { flex: 1, minHeight: 39, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: Colors.border, borderRadius: 8 },
+  cancelArchiveText: { color: Colors.white, fontSize: 9, fontWeight: "700" },
+  confirmArchiveButton: { flex: 1, minHeight: 39, justifyContent: "center", alignItems: "center", backgroundColor: Colors.danger, borderRadius: 8 },
+  confirmArchiveText: { color: Colors.white, fontSize: 9, fontWeight: "800" },
+  archiveButton: { minHeight: 44, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#75423A", backgroundColor: "#211513", borderRadius: 9, marginTop: 22 },
+  archiveButtonDisabled: { borderColor: Colors.border, backgroundColor: Colors.surface },
+  archiveButtonText: { color: Colors.danger, fontSize: 10, fontWeight: "800" },
+  archiveHint: { color: Colors.muted, fontSize: 8, lineHeight: 13, textAlign: "center", marginTop: 8 },
+  actionError: { color: Colors.danger, fontSize: 10, marginTop: 12 },
 });

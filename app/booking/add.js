@@ -32,8 +32,9 @@ function dateInputValue(date) {
 }
 
 function parseDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const [year, month, day] = value.split("-").map(Number);
+  const cleanValue = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanValue)) return null;
+  const [year, month, day] = cleanValue.split("-").map(Number);
   const date = new Date(year, month - 1, day, 9);
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
     ? date
@@ -62,6 +63,8 @@ export default function AddBooking() {
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [availabilityError, setAvailabilityError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [bookingError, setBookingError] = useState("");
   const [loadedAvailabilityRange, setLoadedAvailabilityRange] = useState("");
 
   useEffect(() => {
@@ -177,36 +180,38 @@ export default function AddBooking() {
 
   const saveBooking = async () => {
     const selectedCustomer = customers.find((customer) => customer.id === customerId);
-    if (!selectedCustomer || !selectedVehicle) {
-      Alert.alert("Choose available options", "Select a customer and a vehicle available for the selected dates.");
-      return;
+    const cleanDestination = destination.trim();
+    const cleanDistance = destinationKm.trim();
+    const errors = {};
+    if (!selectedCustomer) errors.customerId = "Select a customer.";
+    if (!selectedVehicle) errors.vehicleId = "Select an available vehicle.";
+    if (!pickup) errors.pickupDate = "Enter a valid pickup date (YYYY-MM-DD).";
+    if (!returnAt) errors.returnDate = "Enter a valid return date (YYYY-MM-DD).";
+    if (pickup && returnAt && returnAt <= pickup) {
+      errors.returnDate = "Return date must be after pickup.";
     }
-    if (
-      !pickup ||
-      !returnAt ||
-      !rentalDays ||
-      pickup < new Date(new Date().setHours(0, 0, 0, 0))
-    ) {
-      Alert.alert("Check rental dates", "Use valid YYYY-MM-DD dates, choose a future pickup, and make sure return is after pickup.");
-      return;
+    if (pickup && pickup < today) {
+      errors.pickupDate = "Pickup date must be today or later.";
     }
-    if (!destination.trim()) {
-      Alert.alert("Destination required", "Enter the destination for this rental.");
-      return;
+    if (!cleanDestination) errors.destination = "Enter the destination for this rental.";
+    if (!/^(?:\d+\.?\d*|\.\d+)$/.test(cleanDistance) || !validKm) {
+      errors.destinationKm = "Enter a distance greater than zero kilometers.";
     }
-    if (!validKm || !destinationKm.trim()) {
-      Alert.alert("Distance required", "Enter the one-way distance to the destination in kilometers.");
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
       return;
     }
 
+    setFieldErrors({});
+    setBookingError("");
     setIsSaving(true);
     try {
       await createBooking(db, {
         customerId: selectedCustomer.id,
         vehicleId: selectedVehicle.id,
-        pickupAt: pickup,
-        returnAt,
-        destination: destination.trim(),
+        pickupAt: parseDate(pickupDate.trim()),
+        returnAt: parseDate(returnDate.trim()),
+        destination: cleanDestination,
         destinationKm: km,
         distanceRatePerKm: DISTANCE_RATE_PER_KM,
         bookingChannel,
@@ -218,7 +223,12 @@ export default function AddBooking() {
         { text: "View bookings", onPress: returnToBookings },
       ]);
     } catch (error) {
-      Alert.alert("Could not create booking", error?.message || "Please review the booking details and try again.");
+      const message = error?.message || "Please review the booking details and try again.";
+      if (/already booked|availability/i.test(message)) {
+        setFieldErrors({ vehicleId: message });
+      } else {
+        setBookingError(message);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -247,7 +257,10 @@ export default function AddBooking() {
             {customers.map((customer) => (
               <TouchableOpacity
                 key={customer.id}
-                onPress={() => setCustomerId(customer.id)}
+                onPress={() => {
+                  setCustomerId(customer.id);
+                  setFieldErrors((current) => ({ ...current, customerId: "" }));
+                }}
                 style={[styles.option, customer.id === customerId && styles.optionActive]}
               >
                 <Text style={[styles.optionText, customer.id === customerId && styles.optionTextActive]}>
@@ -258,6 +271,7 @@ export default function AddBooking() {
           </ScrollView>
         ) : <Text style={styles.helper}>Add a customer before creating a booking.</Text>}
         <Text style={styles.selectedText}>Selected: {customerName}</Text>
+        {fieldErrors.customerId ? <Text style={styles.error}>{fieldErrors.customerId}</Text> : null}
 
         <Text style={styles.fieldLabel}>BOOKING CHANNEL</Text>
         <View style={styles.channelRow}>
@@ -287,7 +301,10 @@ export default function AddBooking() {
           ) : rangeVehicles.map((vehicle) => (
             <TouchableOpacity
               key={vehicle.id}
-              onPress={() => setVehicleId(vehicle.id)}
+              onPress={() => {
+                setVehicleId(vehicle.id);
+                setFieldErrors((current) => ({ ...current, vehicleId: "" }));
+              }}
               style={[styles.vehicleOption, vehicle.id === vehicleId && styles.vehicleOptionActive]}
             >
               <View style={styles.vehicleCopy}>
@@ -297,6 +314,7 @@ export default function AddBooking() {
               {vehicle.id === vehicleId && <Text style={styles.selectedMark}>✓</Text>}
             </TouchableOpacity>
           ))}
+          {fieldErrors.vehicleId ? <Text style={styles.error}>{fieldErrors.vehicleId}</Text> : null}
           {!availabilityLoading && rangeVehicles.length === 0 && (
             <Text style={styles.helper}>
               {!pickup || !returnAt || returnAt <= pickup
@@ -311,44 +329,60 @@ export default function AddBooking() {
             <Text style={styles.fieldLabel}>PICKUP DATE</Text>
             <TextInput
               value={pickupDate}
-              onChangeText={setPickupDate}
+              onChangeText={(value) => {
+                setPickupDate(value);
+                setFieldErrors((current) => ({ ...current, pickupDate: "" }));
+              }}
               placeholder="YYYY-MM-DD"
               placeholderTextColor={Colors.muted}
               style={styles.input}
               autoCapitalize="none"
             />
+            {fieldErrors.pickupDate ? <Text style={styles.error}>{fieldErrors.pickupDate}</Text> : null}
           </View>
           <View style={styles.column}>
             <Text style={styles.fieldLabel}>RETURN DATE</Text>
             <TextInput
               value={returnDate}
-              onChangeText={setReturnDate}
+              onChangeText={(value) => {
+                setReturnDate(value);
+                setFieldErrors((current) => ({ ...current, returnDate: "" }));
+              }}
               placeholder="YYYY-MM-DD"
               placeholderTextColor={Colors.muted}
               style={styles.input}
               autoCapitalize="none"
             />
+            {fieldErrors.returnDate ? <Text style={styles.error}>{fieldErrors.returnDate}</Text> : null}
           </View>
         </View>
 
         <Text style={styles.fieldLabel}>DESTINATION</Text>
         <TextInput
           value={destination}
-          onChangeText={setDestination}
+          onChangeText={(value) => {
+            setDestination(value);
+            setFieldErrors((current) => ({ ...current, destination: "" }));
+          }}
           placeholder="e.g. Tagaytay, Cavite"
           placeholderTextColor={Colors.muted}
           style={styles.input}
         />
+        {fieldErrors.destination ? <Text style={styles.error}>{fieldErrors.destination}</Text> : null}
 
         <Text style={styles.fieldLabel}>ONE-WAY DISTANCE FROM RENTTRACK (KM)</Text>
         <TextInput
           value={destinationKm}
-          onChangeText={setDestinationKm}
+          onChangeText={(value) => {
+            setDestinationKm(value);
+            setFieldErrors((current) => ({ ...current, destinationKm: "" }));
+          }}
           placeholder="e.g. 65"
           placeholderTextColor={Colors.muted}
           style={styles.input}
           keyboardType="decimal-pad"
         />
+        {fieldErrors.destinationKm ? <Text style={styles.error}>{fieldErrors.destinationKm}</Text> : null}
         <Text style={styles.helper}>Use the approximate road distance from the pickup branch to the destination.</Text>
 
         <View style={styles.quoteCard}>
@@ -369,6 +403,7 @@ export default function AddBooking() {
           <Text style={styles.formula}>Daily rate × rental days + destination km × ₱{DISTANCE_RATE_PER_KM}/km</Text>
         </View>
 
+        {bookingError ? <Text style={styles.error}>{bookingError}</Text> : null}
         <TouchableOpacity
           style={[styles.button, isSaving && styles.buttonDisabled]}
           onPress={saveBooking}
