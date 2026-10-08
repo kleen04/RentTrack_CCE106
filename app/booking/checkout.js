@@ -16,18 +16,7 @@ import { useAuth } from "../../context/AuthContext";
 import { createPayment, getBookingByCode } from "../../services/database";
 
 const PAYMENT_METHODS = [
-<<<<<<< HEAD
-  { id: "GCASH", label: "GCash", subtext: "Mobile wallet payment", icon: "phone-portrait-outline" },
-  { id: "CARD", label: "Card", subtext: "Card payment", icon: "card-outline" },
   { id: "CASH", label: "Cash", subtext: "Record payment at counter", icon: "cash-outline" },
-=======
-  {
-    id: "CASH",
-    label: "Cash",
-    subtext: "Record payment at counter",
-    icon: "cash-outline",
-  },
->>>>>>> 803fe8299583d405a4ded175e8a13325fc2b4eff
 ];
 
 function formatDate(value) {
@@ -121,13 +110,7 @@ export default function Checkout() {
 
     setIsSubmitting(true);
     setCheckoutError("");
-<<<<<<< HEAD
     const reference = `PAY-${Date.now().toString().slice(-8)}`;
-=======
-
-    const reference = `DEMO-${Date.now().toString().slice(-8)}`;
-
->>>>>>> 803fe8299583d405a4ded175e8a13325fc2b4eff
     try {
       await createPayment(
         db,
@@ -142,13 +125,7 @@ export default function Checkout() {
       setSuccessReference(reference);
       await loadBooking();
     } catch (error) {
-<<<<<<< HEAD
       setCheckoutError(error?.message || "The payment could not be completed.");
-=======
-      setCheckoutError(
-        error?.message || "The demo checkout could not be completed."
-      );
->>>>>>> 803fe8299583d405a4ded175e8a13325fc2b4eff
     } finally {
       setIsSubmitting(false);
     }
@@ -238,29 +215,6 @@ export default function Checkout() {
           </View>
         </View>
 
-<<<<<<< HEAD
-=======
-        
-        <View style={styles.notice}>
-          <Ionicons
-            name="shield-checkmark-outline"
-            size={19}
-            color={Colors.primary}
-          />
-
-          <View style={styles.noticeCopy}>
-            <Text style={styles.noticeTitle}>
-              Prototype transaction
-            </Text>
-
-            <Text style={styles.noticeText}>
-              No real payment will be processed.
-            </Text>
-          </View>
-        </View>
-
-        
->>>>>>> 803fe8299583d405a4ded175e8a13325fc2b4eff
         <View style={styles.card}>
           <View style={styles.bookingHeader}>
             <View>
@@ -429,14 +383,7 @@ export default function Checkout() {
         ) : (
           <>
             <View style={styles.card}>
-<<<<<<< HEAD
               <Text style={styles.sectionTitle}>Choose a payment method</Text>
-=======
-              <Text style={styles.sectionTitle}>
-                Choose a demopayment method
-              </Text>
-
->>>>>>> 803fe8299583d405a4ded175e8a13325fc2b4eff
               {PAYMENT_METHODS.map((method) => {
                 const selected =
                   selectedMethod === method.id;
@@ -519,15 +466,8 @@ export default function Checkout() {
 
               <Text style={styles.confirmText}>
                 {isSubmitting
-<<<<<<< HEAD
                   ? "Processing payment…"
                   : `Complete payment · ${formatAmount(amountDue)}`}
-=======
-                  ? "Processing demo payment…"
-                  : `Demo successful checkout · ${formatAmount(
-                      amountDue
-                    )}`}
->>>>>>> 803fe8299583d405a4ded175e8a13325fc2b4eff
               </Text>
             </TouchableOpacity>
 
@@ -584,7 +524,6 @@ function PriceRow({ label, value }) {
 }
 
 const styles = StyleSheet.create({
-<<<<<<< HEAD
   container: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 18, paddingBottom: 38 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: Colors.background },
@@ -639,401 +578,3 @@ const styles = StyleSheet.create({
   secondaryButton: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderColor: Colors.border, borderRadius: 9, paddingHorizontal: 13, marginTop: 16 },
   secondaryButtonText: { color: Colors.primary, fontSize: 9, fontWeight: "800" },
 });
-=======
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-
-  content: {
-    padding: 18,
-    paddingBottom: 38,
-  },
-
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    backgroundColor: Colors.background,
-  },
-
-  helperText: {
-    color: Colors.muted,
-    fontSize: 10,
-  },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 18,
-  },
-
-  backButton: {
-    width: 39,
-    height: 39,
-    borderRadius: 10,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  backText: {
-    color: Colors.white,
-    fontSize: 11,
-    marginLeft: 8,
-  },
-
-  headerCopy: {
-    flex: 1,
-  },
-
-  eyebrow: {
-    color: Colors.primary,
-    fontSize: 8,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-
-  title: {
-    color: Colors.white,
-    fontSize: 22,
-    fontWeight: "900",
-    marginTop: 3,
-  },
-
-  notice: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "#132A16",
-    borderWidth: 1,
-    borderColor: "#2E4A1F",
-    borderRadius: 12,
-    padding: 13,
-    marginBottom: 14,
-  },
-
-  noticeCopy: {
-    flex: 1,
-  },
-
-  noticeTitle: {
-    color: Colors.primary,
-    fontSize: 10,
-    fontWeight: "800",
-  },
-
-  noticeText: {
-    color: Colors.muted,
-    fontSize: 9,
-    marginTop: 3,
-  },
-
-  card: {
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 14,
-    padding: 15,
-    marginBottom: 13,
-  },
-
-  bookingHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  sectionLabel: {
-    color: Colors.primary,
-    fontSize: 8,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-  },
-
-  bookingCode: {
-    color: Colors.muted,
-    fontSize: 9,
-    marginTop: 4,
-  },
-
-  statusBadge: {
-    borderWidth: 1,
-    borderColor: Colors.warning,
-    backgroundColor: "#2A2008",
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-
-  statusText: {
-    color: Colors.warning,
-    fontSize: 7,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-  },
-
-  paidBadge: {
-    borderColor: Colors.primary,
-    backgroundColor: "#132A16",
-  },
-
-  paidText: {
-    color: Colors.primary,
-  },
-
-  vehicleName: {
-    color: Colors.white,
-    fontSize: 17,
-    fontWeight: "800",
-    marginTop: 13,
-  },
-
-  customerName: {
-    color: Colors.muted,
-    fontSize: 10,
-    marginTop: 4,
-  },
-
-  divider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginVertical: 12,
-  },
-
-  infoRow: {
-    minHeight: 38,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    justifyContent: "center",
-    paddingVertical: 7,
-  },
-
-  infoRowLast: {
-    borderBottomWidth: 0,
-  },
-
-  infoLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-  },
-
-  infoLabel: {
-    color: Colors.muted,
-    fontSize: 8,
-  },
-
-  infoValue: {
-    color: Colors.white,
-    fontSize: 10,
-    fontWeight: "600",
-    marginTop: 4,
-    marginLeft: 21,
-  },
-
-  sectionTitle: {
-    color: Colors.white,
-    fontSize: 13,
-    fontWeight: "800",
-    marginBottom: 10,
-  },
-
-  priceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-  },
-
-  priceLabel: {
-    color: Colors.muted,
-    fontSize: 9,
-    flex: 1,
-    marginRight: 8,
-  },
-
-  priceValue: {
-    color: Colors.white,
-    fontSize: 10,
-    fontWeight: "700",
-  },
-
-  totalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: 13,
-    marginTop: 4,
-  },
-
-  totalLabel: {
-    color: Colors.white,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-
-  totalValue: {
-    color: Colors.primary,
-    fontSize: 19,
-    fontWeight: "900",
-  },
-
-  methodRow: {
-    minHeight: 62,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    marginTop: 8,
-  },
-
-  methodRowSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: "#10291E",
-  },
-
-  methodIcon: {
-    width: 33,
-    height: 33,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#081A13",
-  },
-
-  methodCopy: {
-    flex: 1,
-  },
-
-  methodTitle: {
-    color: Colors.white,
-    fontSize: 10,
-    fontWeight: "700",
-  },
-
-  methodSubtext: {
-    color: Colors.muted,
-    fontSize: 8,
-    marginTop: 3,
-  },
-
-  radio: {
-    width: 17,
-    height: 17,
-    borderWidth: 1,
-    borderColor: Colors.muted,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  radioSelected: {
-    borderColor: Colors.primary,
-  },
-
-  radioDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
-  },
-
-  confirmButton: {
-    minHeight: 49,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: 11,
-    paddingHorizontal: 12,
-    marginTop: 2,
-  },
-
-  confirmDisabled: {
-    opacity: 0.65,
-  },
-
-  confirmText: {
-    color: Colors.background,
-    fontSize: 10,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-
-  disclaimer: {
-    color: Colors.muted,
-    fontSize: 8,
-    textAlign: "center",
-    marginTop: 9,
-  },
-
-  errorText: {
-    color: Colors.danger,
-    fontSize: 10,
-    lineHeight: 15,
-    marginBottom: 10,
-  },
-
-  successCard: {
-    alignItems: "center",
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 14,
-    padding: 20,
-  },
-
-  successIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  successTitle: {
-    color: Colors.white,
-    fontSize: 17,
-    fontWeight: "900",
-    marginTop: 12,
-  },
-
-  successCopy: {
-    color: Colors.muted,
-    fontSize: 9,
-    textAlign: "center",
-    marginTop: 6,
-  },
-
-  secondaryButton: {
-    minHeight: 40,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 9,
-    paddingHorizontal: 13,
-    marginTop: 16,
-  },
-
-  secondaryButtonText: {
-    color: Colors.primary,
-    fontSize: 9,
-    fontWeight: "800",
-  },
-});
->>>>>>> 803fe8299583d405a4ded175e8a13325fc2b4eff

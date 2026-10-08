@@ -182,10 +182,14 @@ export default function AddBooking() {
   const selectDays = (days) => {
     const start = pickup || parseDate(pickupDate);
     if (!start) {
-      Alert.alert("Pickup date required", "Enter a valid pickup date first.");
+      setFieldErrors((current) => ({
+        ...current,
+        pickupDate: "Enter a valid pickup date before choosing rental days.",
+      }));
       return;
     }
     setReturnDate(dateInputValue(addDays(start, days)));
+    setFieldErrors((current) => ({ ...current, returnDate: "" }));
     setShowDaysMenu(false);
   };
 
@@ -206,26 +210,15 @@ export default function AddBooking() {
     if (pickup && returnAt && returnAt <= pickup) {
       errors.returnDate = "Return date must be after pickup.";
     }
-<<<<<<< HEAD
     if (pickup && pickup < today) {
       errors.pickupDate = "Pickup date must be today or later.";
-=======
-    if (!pickup || !returnAt || !rentalDays || pickup < today) {
-      Alert.alert("Check rental dates", "Use valid YYYY-MM-DD dates, choose a future pickup, and make sure return is after pickup.");
-      return;
->>>>>>> 803fe8299583d405a4ded175e8a13325fc2b4eff
     }
     if (!cleanDestination) errors.destination = "Enter the destination for this rental.";
     if (!/^(?:\d+\.?\d*|\.\d+)$/.test(cleanDistance) || !validKm) {
       errors.destinationKm = "Enter a distance greater than zero kilometers.";
     }
-<<<<<<< HEAD
     if (Object.keys(errors).length) {
       setFieldErrors(errors);
-=======
-    if (!validKm) {
-      Alert.alert("Distance required", "Enter the one-way distance to the destination in kilometers.");
->>>>>>> 803fe8299583d405a4ded175e8a13325fc2b4eff
       return;
     }
 
@@ -236,8 +229,8 @@ export default function AddBooking() {
       await createBooking(db, {
         customerId: selectedCustomer.id,
         vehicleId: selectedVehicle.id,
-        pickupAt: parseDate(pickupDate.trim()),
-        returnAt: parseDate(returnDate.trim()),
+        pickupAt: pickup,
+        returnAt,
         destination: cleanDestination,
         destinationKm: km,
         distanceRatePerKm: ratePerKm,
@@ -344,7 +337,6 @@ export default function AddBooking() {
               {vehicle.id === vehicleId && <Text style={styles.selectedMark}>✓</Text>}
             </TouchableOpacity>
           ))}
-          {fieldErrors.vehicleId ? <Text style={styles.error}>{fieldErrors.vehicleId}</Text> : null}
           {!availabilityLoading && rangeVehicles.length === 0 && (
             <Text style={styles.helper}>
               {!pickup || !returnAt || returnAt <= pickup
@@ -352,6 +344,7 @@ export default function AddBooking() {
                 : "No vehicles are available for those dates."}
             </Text>
           )}
+          {fieldErrors.vehicleId ? <Text style={styles.error}>{fieldErrors.vehicleId}</Text> : null}
         </View>
 
         <View style={styles.twoColumns}>
@@ -403,14 +396,10 @@ export default function AddBooking() {
         <Text style={styles.fieldLabel}>ONE-WAY DISTANCE FROM RENTTRACK (KM)</Text>
         <TextInput
           value={destinationKm}
-<<<<<<< HEAD
-          onChangeText={(value) => {
-            setDestinationKm(value);
+          onChangeText={(text) => {
+            setDestinationKm(cleanDecimal(text));
             setFieldErrors((current) => ({ ...current, destinationKm: "" }));
           }}
-=======
-          onChangeText={(text) => setDestinationKm(cleanDecimal(text))}
->>>>>>> 803fe8299583d405a4ded175e8a13325fc2b4eff
           placeholder="e.g. 65"
           placeholderTextColor={Colors.muted}
           style={styles.input}
@@ -423,6 +412,7 @@ export default function AddBooking() {
           <Text style={styles.quoteTitle}>ESTIMATED RENTAL TOTAL</Text>
 
           <Text style={styles.quoteFieldLabel}>RENTAL DAYS</Text>
+          {bookingError ? <Text style={styles.error}>{bookingError}</Text> : null}
           <TouchableOpacity
             style={styles.dropdown}
             onPress={() => setShowDaysMenu((open) => !open)}
@@ -464,7 +454,6 @@ export default function AddBooking() {
           <Text style={styles.formula}>Daily rate × rental days + destination km × ₱{ratePerKm}/km</Text>
         </View>
 
-        {bookingError ? <Text style={styles.error}>{bookingError}</Text> : null}
         <TouchableOpacity
           style={[styles.button, isSaving && styles.buttonDisabled]}
           onPress={saveBooking}
