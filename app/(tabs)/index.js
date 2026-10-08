@@ -1,4 +1,4 @@
-import React from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,11 +9,122 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { addDatabaseChangeListener, useSQLiteContext } from "expo-sqlite";
 
 import { Colors } from "../../constants/colors";
+import useFleetVehicles from "../../hooks/useFleetVehicles";
+import { getBookings, getCustomers, getMonthlyReportData } from "../../services/database";
+
+function formatCurrency(value) {
+  return `₱${Number(value || 0).toLocaleString("en-PH")}`;
+}
+
+function getRevenueChange(current, previous) {
+  if (!previous) {
+    return current > 0 ? "Rental income recorded this month" : "No returned rentals recorded this month";
+  }
+  const difference = current - previous;
+  const percentage = Math.round((Math.abs(difference) / previous) * 100);
+  return `${difference >= 0 ? "↗" : "↘"} ${percentage}% vs last month`;
+}
+
+function getWeeklyRevenue(bookings, month) {
+  const values = [0, 0, 0, 0, 0];
+  bookings.forEach((booking) => {
+    if (!booking.returnedAt) return;
+    const returnedAt = new Date(booking.returnedAt);
+    if (
+      returnedAt.getFullYear() !== month.getFullYear() ||
+      returnedAt.getMonth() !== month.getMonth()
+    ) {
+      return;
+    }
+    const weekIndex = Math.min(4, Math.floor((returnedAt.getDate() - 1) / 7));
+    values[weekIndex] += Number(booking.totalAmount || 0);
+  });
+  return values;
+}
 
 export default function Overview() {
-  const [profileMenuVisible, setProfileMenuVisible] = React.useState(false);
+  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+  const db = useSQLiteContext();
+  const { vehicles, error: fleetError } = useFleetVehicles();
+  const [liveBookings, setLiveBookings] = useState([]);
+  const [customerCount, setCustomerCount] = useState(0);
+  const [monthlyReport, setMonthlyReport] = useState(null);
+  const [dataError, setDataError] = useState("");
+
+  const loadOverviewData = useCallback(async () => {
+    try {
+      const currentDate = new Date();
+      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const [bookingRows, customerRows, report] = await Promise.all([
+        getBookings(db),
+        getCustomers(db),
+        getMonthlyReportData(db, monthStart),
+      ]);
+      setLiveBookings(bookingRows);
+      setCustomerCount(customerRows.length);
+      setMonthlyReport(report);
+      setDataError("");
+    } catch (error) {
+      setDataError(error?.message || "Dashboard data could not be loaded.");
+    }
+  }, [db]);
+
+  useEffect(() => {
+    let isActive = true;
+    const subscription = addDatabaseChangeListener((event) => {
+      if (
+        ["bookings", "customers", "rental_transactions"].includes(event.tableName)
+      ) {
+        loadOverviewData();
+      }
+    });
+    const currentDate = new Date();
+    const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    Promise.all([
+      getBookings(db),
+      getCustomers(db),
+      getMonthlyReportData(db, monthStart),
+    ])
+      .then(([bookingRows, customerRows, report]) => {
+        if (!isActive) return;
+        setLiveBookings(bookingRows);
+        setCustomerCount(customerRows.length);
+        setMonthlyReport(report);
+        setDataError("");
+      })
+      .catch((error) => {
+        if (isActive) setDataError(error?.message || "Dashboard data could not be loaded.");
+      });
+    return () => {
+      isActive = false;
+      subscription.remove();
+    };
+  }, [db, loadOverviewData]);
+
+  const availableCount = vehicles.filter((vehicle) => vehicle.status === "AVAILABLE").length;
+  const activeCount = liveBookings.filter((booking) => booking.status === "ACTIVE").length;
+  const totalBookingCount = liveBookings.length;
+  const reservedCount = liveBookings.filter((booking) => booking.status === "RESERVED").length;
+  const today = new Date();
+  const currentRevenue = (monthlyReport?.incomeBookings || []).reduce(
+    (total, booking) => total + Number(booking.totalAmount || 0),
+    0
+  );
+  const previousRevenue = (monthlyReport?.previousIncomeBookings || []).reduce(
+    (total, booking) => total + Number(booking.totalAmount || 0),
+    0
+  );
+  const weeklyRevenue = getWeeklyRevenue(
+    monthlyReport?.incomeBookings || [],
+    today
+  );
+  const maxWeeklyRevenue = Math.max(...weeklyRevenue, 1);
+  const attentionBooking =
+    liveBookings.find((booking) => booking.status === "ACTIVE") ||
+    liveBookings.find((booking) => booking.status === "RESERVED");
 
   return (
     <View style={styles.container}>
@@ -23,7 +134,14 @@ export default function Overview() {
       >
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <Text style={styles.date}>WEDNESDAY, SEP 18</Text>
+            <Text style={styles.date}>
+              {today.toLocaleDateString("en-PH", {
+                weekday: "long",
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }).toUpperCase()}
+            </Text>
 
             <TouchableOpacity
               style={styles.profileButton}
@@ -39,34 +157,37 @@ export default function Overview() {
           <Text style={styles.title}>Fleet overview</Text>
 
           <Text style={styles.subtitle}>
-            Here's what's happening today.
+            Here&apos;s what&apos;s happening today.
           </Text>
         </View>
 
         <View style={styles.revenueCard}>
           <Text style={styles.revenueLabel}>
-            NET REVENUE • SEPTEMBER
+            RENTAL INCOME • {today.toLocaleDateString("en-PH", { month: "long" }).toUpperCase()}
           </Text>
 
           <Text style={styles.revenueAmount}>
-            ₱284,500
+            {formatCurrency(currentRevenue)}
           </Text>
 
           <Text style={styles.revenueChange}>
-            ↗ 12.4% from last month
+            {getRevenueChange(currentRevenue, previousRevenue)}
           </Text>
 
           <View style={styles.chart}>
-            <View style={[styles.bar, { height: 12 }]} />
-            <View style={[styles.bar, { height: 26 }]} />
-            <View style={[styles.bar, { height: 20 }]} />
-            <View style={[styles.bar, { height: 38 }]} />
-            <View style={[styles.bar, { height: 30 }]} />
-            <View style={[styles.bar, { height: 46 }]} />
-            <View style={[styles.bar, { height: 36 }]} />
-            <View style={[styles.bar, { height: 52 }]} />
-            <View style={[styles.bar, { height: 42 }]} />
-            <View style={[styles.bar, { height: 60 }]} />
+            {weeklyRevenue.map((revenue, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.bar,
+                  {
+                    height: revenue
+                      ? Math.max(4, Math.round((revenue / maxWeeklyRevenue) * 60))
+                      : 3,
+                  },
+                ]}
+              />
+            ))}
           </View>
         </View>
 
@@ -74,31 +195,34 @@ export default function Overview() {
           <StatCard
             icon="car-outline"
             label="TOTAL FLEET"
-            value="24"
-            subtext="18 available"
+            value={String(vehicles.length).padStart(2, "0")}
+            subtext={`${availableCount} available`}
           />
 
           <StatCard
             icon="time-outline"
             label="ACTIVE RENTALS"
-            value="06"
-            subtext="2 due today"
+            value={String(activeCount).padStart(2, "0")}
+            subtext={`${reservedCount} confirmed reservations`}
           />
 
           <StatCard
             icon="calendar-outline"
             label="BOOKINGS"
-            value="12"
-            subtext="4 new this week"
+            value={String(totalBookingCount).padStart(2, "0")}
+            subtext="Across all booking channels"
           />
 
           <StatCard
             icon="people-outline"
             label="CUSTOMERS"
-            value="148"
-            subtext="+8 this month"
+            value={String(customerCount).padStart(2, "0")}
+            subtext="in customer records"
           />
         </View>
+        {fleetError || dataError ? (
+          <Text style={styles.dataError}>{fleetError || dataError}</Text>
+        ) : null}
 
         <View style={styles.sectionHeader}>
           <View>
@@ -118,68 +242,86 @@ export default function Overview() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.rentalCard}>
-          <View style={styles.rentalTop}>
-            <Text style={styles.rentalId}>
-              RT-2408
+        {attentionBooking ? (
+          <View style={styles.rentalCard}>
+            <View style={styles.rentalTop}>
+              <Text style={styles.rentalId}>{attentionBooking.bookingCode}</Text>
+
+              <View style={styles.activeBadge}>
+                <Text style={styles.activeText}>
+                  {attentionBooking.status === "ACTIVE" ? "RENTED" : "CONFIRMED"}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.vehicleName}>{attentionBooking.vehicleName}</Text>
+
+            <Text style={styles.customerInfo}>
+              {attentionBooking.plateNumber || "Plate pending"} • {attentionBooking.customerName}
             </Text>
 
-            <View style={styles.activeBadge}>
-              <Text style={styles.activeText}>
-                ACTIVE
-              </Text>
+            <View style={styles.dateBox}>
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color={Colors.muted}
+              />
+
+              <View>
+                <Text style={styles.dateMain}>
+                  {new Date(attentionBooking.pickupAt).toLocaleString("en-PH", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </Text>
+
+                <Text style={styles.dateSecondary}>
+                  to {new Date(attentionBooking.returnAt).toLocaleString("en-PH", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.rentalBottom}>
+              <View>
+                <Text style={styles.totalLabel}>TOTAL</Text>
+                <Text style={styles.totalAmount}>
+                  ₱{Number(attentionBooking.totalAmount).toLocaleString("en-PH")}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.checkoutButton}
+                onPress={() =>
+                  router.push({
+                    pathname: "/booking/checkout",
+                    params: { id: attentionBooking.bookingCode },
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel={`Open checkout for booking ${attentionBooking.bookingCode}`}
+              >
+                <Text style={styles.checkoutText}>Checkout</Text>
+              </TouchableOpacity>
             </View>
           </View>
-
-          <Text style={styles.vehicleName}>
-            Ford Ranger
-          </Text>
-
-          <Text style={styles.customerInfo}>
-            NCR 1912 • Alex Rivera
-          </Text>
-
-          <View style={styles.dateBox}>
-            <Ionicons
-              name="calendar-outline"
-              size={20}
-              color={Colors.muted}
-            />
-
-            <View>
-              <Text style={styles.dateMain}>
-                Sep 16, 9:00 AM
-              </Text>
-
-              <Text style={styles.dateSecondary}>
-                to Sep 19, 9:00 AM
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.rentalBottom}>
-            <View>
-              <Text style={styles.totalLabel}>
-                TOTAL
-              </Text>
-
-              <Text style={styles.totalAmount}>
-                ₱13,800
-              </Text>
-            </View>
-
+        ) : (
+          <View style={styles.rentalCard}>
+            <Text style={styles.customerInfo}>No confirmed or active bookings need attention.</Text>
             <TouchableOpacity
               style={styles.checkoutButton}
-              onPress={() =>
-                router.push("/booking/checkout")
-              }
+              onPress={() => router.push("/(tabs)/bookings")}
             >
-              <Text style={styles.checkoutText}>
-                Checkout
-              </Text>
+              <Text style={styles.checkoutText}>View bookings</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        )}
 
         <View style={styles.quickActions}>
           <QuickAction
@@ -463,6 +605,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     marginBottom: 10,
+  },
+
+  dataError: {
+    color: Colors.warning,
+    fontSize: 10,
+    marginBottom: 12,
   },
 
   iconBox: {

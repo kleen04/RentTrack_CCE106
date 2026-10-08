@@ -85,12 +85,6 @@ export default function TabsLayout() {
         }}
       />
 
-      <Tabs.Screen
-        name="scan"
-        options={{
-          href: null,
-        }}
-      />
     </Tabs>
   );
 }

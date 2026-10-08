@@ -33,22 +33,18 @@ export default function BookingCard({ booking }) {
       bg: "#132A16",
       text: Colors.primary,
     },
-    PENDING: {
-      border: Colors.border,
-      bg: Colors.surface,
-      text: Colors.muted,
+    CANCELLED: {
+      border: Colors.danger,
+      bg: "#2B1715",
+      text: Colors.danger,
     },
   };
 
   const statusStyle = statusStyles[status] || statusStyles.RESERVED;
-  const isActive = status === "ACTIVE";
+  const displayStatus = status === "RESERVED" ? "CONFIRMED" : status === "ACTIVE" ? "RENTED" : status === "COMPLETED" ? "RETURNED" : status;
 
   const handlePress = () => {
-    if (isActive) {
-      router.push("/booking/checkout");
-    } else {
-      router.push(`/booking/${id}`);
-    }
+    router.push(`/booking/${id}`);
   };
 
   return (
@@ -66,7 +62,7 @@ export default function BookingCard({ booking }) {
           ]}
         >
           <Text style={[styles.statusText, { color: statusStyle.text }]}>
-            {status}
+            {displayStatus}
           </Text>
         </View>
       </View>
@@ -76,6 +72,16 @@ export default function BookingCard({ booking }) {
       <Text style={styles.subInfo}>
         {plate} · {customer}
       </Text>
+
+      {booking.destination ? (
+        <View style={styles.destinationBox}>
+          <Ionicons name="navigate-outline" size={15} color={Colors.primary} />
+          <Text style={styles.destinationText}>
+            {booking.destination}
+            {Number(booking.destinationKm) > 0 ? ` · ${booking.destinationKm} km one way` : ""}
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.dateBox}>
         <Ionicons name="calendar-outline" size={18} color={Colors.muted} />
@@ -102,7 +108,7 @@ export default function BookingCard({ booking }) {
           ]}
         >
           <Text style={styles.actionText}>
-            {isActive ? "Checkout" : "View details"}
+            Manage rental
           </Text>
         </Pressable>
       </View>
@@ -156,6 +162,23 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     fontSize: 12,
     marginTop: 4,
+  },
+
+  destinationBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    backgroundColor: "#081A13",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 12,
+  },
+
+  destinationText: {
+    color: "#B8C8C0",
+    fontSize: 10,
+    flex: 1,
   },
 
   dateBox: {

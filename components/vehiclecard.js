@@ -6,15 +6,7 @@ import {
   StyleSheet,
   Pressable,
 } from "react-native";
-
-const VEHICLE_IMAGES = {
-  toyota: require("../assets/toyota.jpg"),
-  ford: require("../assets/ford.jpg"),
-  honda: require("../assets/honda.jpg"),
-  montero: require("../assets/montero.jpg"),
-  terra: require("../assets/terra.jpg"),
-  vios: require("../assets/vios.jpg"),
-};
+import { VEHICLE_IMAGES } from "../constants/vehicleImages";
 
 export default function VehicleCard({
   vehicle,
@@ -30,12 +22,13 @@ export default function VehicleCard({
     status = "AVAILABLE",
   } = vehicle || {};
 
-  const statusColor =
-    status === "AVAILABLE"
-      ? "#B8FF2C"
-      : status === "RENTED"
-      ? "#F0C94A"
-      : "#B8FF2C";
+  const statusColors = {
+    AVAILABLE: "#B8FF2C",
+    RESERVED: "#F0C94A",
+    RENTED: "#45BDE8",
+    MAINTENANCE: "#FF8A65",
+  };
+  const statusColor = statusColors[status] || "#718078";
 
   const imageSource = imageUri
     ? { uri: imageUri }
@@ -48,6 +41,8 @@ export default function VehicleCard({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`View ${brand} ${name}, status ${status}`}
       style={({ pressed }) => [
         styles.card,
         pressed && styles.pressed,

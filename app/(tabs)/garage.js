@@ -21,7 +21,7 @@ import VehicleCard from "../../components/vehiclecard";
 import { getVehicles } from "../../services/database";
 import { Colors } from "../../constants/colors";
 
-const FILTERS = ["All", "Available", "Reserved", "Rented"];
+const FILTERS = ["All", "Available", "Reserved", "Rented", "Maintenance"];
 
 export default function Garage() {
   const [activeFilterTab, setActiveFilterTab] = useState("All");
@@ -69,6 +69,9 @@ export default function Garage() {
   const rentedCount = vehicles.filter(
     (vehicle) => vehicle.status === "RENTED"
   ).length;
+  const maintenanceCount = vehicles.filter(
+    (vehicle) => vehicle.status === "MAINTENANCE"
+  ).length;
 
   return (
     <View style={styles.container}>
@@ -99,7 +102,7 @@ export default function Garage() {
           </Text>
 
           <Text style={styles.pulseText}>
-            {availableCount} ready · {rentedCount} out
+            {availableCount} ready · {rentedCount} out · {maintenanceCount} in service
           </Text>
 
           <View style={styles.live}>
