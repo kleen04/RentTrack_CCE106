@@ -3,6 +3,7 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,8 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { File, Paths } from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import { addDatabaseChangeListener, useSQLiteContext } from "expo-sqlite";
 
 import Header from "../../components/header";
@@ -56,6 +59,16 @@ function formatCurrency(amount, compact = false) {
     return `₱${(amount / 1000).toFixed(1)}k`;
   }
   return `₱${Number(amount || 0).toLocaleString("en-PH")}`;
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  const safeText = /^[\s]*[=+\-@]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replace(/"/g, '""')}"`;
+}
+
+function createCsv(rows) {
+  return `\uFEFF${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}`;
 }
 
 function completedBookings(bookings) {
@@ -173,6 +186,7 @@ export default function Reports() {
   const [usageRows, setUsageRows] = useState([]);
   const [rangeLoading, setRangeLoading] = useState(true);
   const [rangeError, setRangeError] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -354,19 +368,143 @@ export default function Reports() {
   ).sort((a, b) => b[1] - a[1]);
   const totalUsageDays = vehicleUsage.reduce((total, row) => total + row[1], 0);
 
-  const showPrintPreview = () => {
-    const heading = REPORT_TYPES.find((type) => type.id === selectedReportType)?.label || "Report";
-    const summary = selectedReportType === "income"
-      ? `${formatCurrency(reportRevenue)} recognized from ${completedRangeRows.length} returned rentals.`
-      : selectedReportType === "history"
-        ? `${transactionRows.length} rental transactions, including ${completedRangeRows.length} returns.`
-        : selectedReportType === "reservations"
-          ? `${reservationRows.length} reservations across ${Object.keys(channelCounts).length} booking channels.`
-            : `${vehicleUsage.length} vehicles ranked for ${totalUsageDays} rented fleet days.`;
-    Alert.alert(
-      "Print / PDF preview",
-      `${heading}\n${reportStartDate} to ${reportEndDate}\n${summary}\n\nPreview only — no file is exported.`
-    );
+  const exportReportSpreadsheet = async () => {
+    setIsExporting(true);
+    try {
+      const rows = [
+        ["RentTrack Business Intelligence Report"],
+        ["Monthly report", monthTitle],
+        ["Monthly period", dateRange],
+        [],
+        ["Monthly overview"],
+        ["Metric", "Value", "Compared with previous month"],
+        ["Completed rental revenue (PHP)", monthRevenue, changeLabel(monthRevenue, previousRevenue, formatCurrency)],
+        ["Fleet utilization (%)", utilization, changeLabel(utilization, previousUtilization, (value) => `${value}%`)],
+        ["Completed rentals", completedCount, changeLabel(completedCount, previousCompletedCount)],
+        ["Average booking (PHP)", averageBooking, changeLabel(averageBooking, previousAverage, (value) => formatCurrency(value, true))],
+        ["New customers", currentData?.customerCount || 0, changeLabel(
+          currentData?.customerCount || 0,
+          currentData?.previousCustomerCount || 0
+        )],
+        ["Bookings", bookings.length, ""],
+        [],
+        ["Weekly revenue"],
+        ["Week", "Completed rental revenue (PHP)"],
+        ...weeklyRevenue.map((amount, index) => [`Week ${index + 1}`, amount]),
+        [],
+        ["Top performer"],
+        ["Vehicle", "Rentals", "Completed revenue (PHP)", "Share of released rentals (%)"],
+        topPerformer
+          ? [
+              `${topPerformer.brand} ${topPerformer.name}`.trim(),
+              topPerformer.rentals,
+              topPerformer.completedRevenue,
+              topShare,
+            ]
+          : ["No bookings to rank for this month.", 0, 0, 0],
+        [],
+        ["Monthly bookings"],
+        ["Booking ID", "Vehicle", "Status", "Pickup", "Expected return", "Total amount (PHP)"],
+        ...(bookings.length
+          ? bookings.map((booking) => [
+              booking.id,
+              `${booking.vehicleBrand} ${booking.vehicleName}`.trim(),
+              booking.status,
+              booking.pickupAt,
+              booking.returnAt,
+              Number(booking.totalAmount || 0),
+            ])
+          : [["No monthly booking records", "", "", "", "", ""]]),
+        [],
+        ["Date-range reports", `${reportStartDate} to ${reportEndDate}`],
+        [],
+        ["Completed rental revenue by vehicle type"],
+        ["Vehicle type", "Returned rentals", "Revenue (PHP)"],
+        ...["All vehicle types", "Car", "Motorcycle"].map((type) => {
+          const matchingRows = type === "All vehicle types"
+            ? completedRangeRows
+            : completedRangeRows.filter(
+                (row) => row.vehicleType?.toLowerCase() === type.toLowerCase()
+              );
+          return [
+            type,
+            matchingRows.length,
+            matchingRows.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0),
+          ];
+        }),
+        [],
+        ["Reservations"],
+        ["Category", "Metric", "Count"],
+        ...["RESERVED", "ACTIVE", "COMPLETED", "CANCELLED"].map((status) => [
+          "Reservation status",
+          status === "RESERVED" ? "Confirmed" : status === "ACTIVE" ? "Rented" : status === "COMPLETED" ? "Returned" : status,
+          statusCounts[status] || 0,
+        ]),
+        ...[
+          ["FACEBOOK", "Facebook"],
+          ["PHONE_MESSENGER", "Phone / Messenger"],
+          ["WALK_IN", "Walk-in"],
+        ].map(([channel, label]) => ["Booking channel", label, channelCounts[channel] || 0]),
+        [],
+        ["Rental history"],
+        ["Booking code", "Customer", "Vehicle", "Vehicle type", "Status", "Booking channel", "Pickup", "Expected return", "Released", "Returned", "Total amount (PHP)", "Processed by", "Remarks"],
+        ...(transactionRows.length
+          ? transactionRows.map((row) => [
+              row.bookingCode,
+              row.customerName,
+              row.vehicleName,
+              row.vehicleType,
+              row.status,
+              row.bookingChannel,
+              row.pickupAt,
+              row.returnAt,
+              row.releasedAt,
+              row.returnedAt,
+              Number(row.totalAmount || 0),
+              row.processedBy,
+              row.remarks,
+            ])
+          : [["No rental history in this date range"]]),
+        [],
+        ["Vehicle usage"],
+        ["Rank", "Vehicle", "Rental days"],
+        ...(vehicleUsage.length
+          ? vehicleUsage.map(([vehicleName, days], index) => [index + 1, vehicleName, days])
+          : [["No vehicles found for this date range", "", ""]]),
+        ["Total vehicle rental days", "", totalUsageDays],
+      ];
+      const csv = createCsv(rows);
+      const filename = `RentTrack_Report_${monthKey(selectedMonth)}_${reportStartDate}_to_${reportEndDate}.csv`;
+
+      if (Platform.OS === "web") {
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const downloadUrl = globalThis.URL.createObjectURL(blob);
+        const link = globalThis.document.createElement("a");
+        link.href = downloadUrl;
+        link.download = filename;
+        globalThis.document.body.appendChild(link);
+        link.click();
+        link.remove();
+        globalThis.setTimeout(() => globalThis.URL.revokeObjectURL(downloadUrl), 1000);
+      } else {
+        const file = new File(Paths.cache, filename);
+        file.create({ overwrite: true });
+        file.write(csv);
+        await Sharing.shareAsync(file.uri, {
+          mimeType: "text/csv",
+          dialogTitle: "Save report spreadsheet",
+        });
+      }
+    } catch (error) {
+      const message = error?.message || "The report spreadsheet could not be exported.";
+      if (Platform.OS === "web") {
+        globalThis.alert(`Unable to export report: ${message}`);
+      } else {
+        Alert.alert("Unable to export report", message);
+      }
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const shiftMonth = (offset) => {
@@ -711,13 +849,26 @@ export default function Reports() {
               )}
 
               <TouchableOpacity
-                style={styles.printPreviewButton}
-                onPress={showPrintPreview}
+                accessibilityRole="button"
+                accessibilityState={{
+                  disabled: isExporting || isLoading || !currentData || rangeLoading || Boolean(rangeError),
+                }}
+                disabled={isExporting || isLoading || !currentData || rangeLoading || Boolean(rangeError)}
+                style={[
+                  styles.reportExportButton,
+                  (isExporting || isLoading || !currentData || rangeLoading || Boolean(rangeError)) &&
+                    styles.reportExportButtonDisabled,
+                ]}
+                onPress={exportReportSpreadsheet}
               >
-                <Ionicons name="print-outline" size={15} color={Colors.background} />
-                <Text style={styles.printPreviewText}>Print / PDF preview</Text>
+                <Ionicons name="download-outline" size={15} color={Colors.background} />
+                <Text style={styles.reportExportText}>
+                  {isExporting ? "Exporting spreadsheet…" : "Download full report spreadsheet"}
+                </Text>
               </TouchableOpacity>
-              <Text style={styles.reportHint}>Preview only; no file is exported.</Text>
+              <Text style={styles.reportHint}>
+                Exports the monthly overview and all date-range report details as a CSV spreadsheet.
+              </Text>
             </View>
 
             <View style={styles.note}>
@@ -1268,7 +1419,7 @@ const styles = StyleSheet.create({
     lineHeight: 13,
     marginTop: 8,
   },
-  printPreviewButton: {
+  reportExportButton: {
     minHeight: 41,
     flexDirection: "row",
     alignItems: "center",
@@ -1278,7 +1429,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 12,
   },
-  printPreviewText: {
+  reportExportButtonDisabled: {
+    opacity: 0.6,
+  },
+  reportExportText: {
     color: Colors.background,
     fontSize: 9,
     fontWeight: "900",
