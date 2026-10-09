@@ -49,7 +49,7 @@ Suggested path: review the dashboard, manage fleet and customer records, create 
 
 The Overview and Reports monthly revenue figures represent the full totals of rentals returned during the month; they are not cash received. The Payments page separately totals successful payments by payment date. Reported fleet utilization uses recorded vehicle release-to-return time against fleet availability during the selected period; the current month is measured to date.
 
-The app starts with an empty local SQLite database, and records persist across app launches. To load the sample vehicles, customers, and bookings (including the Yamaha R15M), use **Restore sample records** at the bottom of the dashboard and confirm. This replaces all saved vehicles, customers, bookings, and payments with the sample records. Vehicle availability is based on the selected rental period.
+The app starts with an empty local SQLite database, and records persist across app launches. To load the sample vehicles, customers, and bookings (including the Yamaha R15M), open the profile menu on the Overview page, select **Settings**, then use **Restore sample records** and confirm. This replaces all saved vehicles, customers, bookings, and payments with the sample records. Vehicle availability is based on the selected rental period.
 
 ## System limitations
 

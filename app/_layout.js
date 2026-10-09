@@ -26,6 +26,9 @@ export default function RootLayout() {
           <Stack.Screen name="booking/add" />
           <Stack.Screen name="customer/[id]" />
           <Stack.Screen name="customer/add" />
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="settings" />
+          <Stack.Screen name="about" />
         </Stack>
       </AuthProvider>
     </SQLiteProvider>

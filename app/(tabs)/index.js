@@ -5,8 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Pressable,
-  Alert,
-  Platform,
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,7 +18,6 @@ import {
   getBookings,
   getCustomers,
   getMonthlyReportData,
-  seedDemoData,
 } from "../../services/database";
 
 function formatCurrency(value) {
@@ -64,7 +61,6 @@ export default function Overview() {
   const [customerCount, setCustomerCount] = useState(0);
   const [monthlyReport, setMonthlyReport] = useState(null);
   const [dataError, setDataError] = useState("");
-  const [isResettingDemo, setIsResettingDemo] = useState(false);
 
   const loadOverviewData = useCallback(async () => {
     try {
@@ -84,49 +80,8 @@ export default function Overview() {
     }
   }, [db]);
 
-  const resetDemoData = async () => {
-    setIsResettingDemo(true);
-    try {
-      await seedDemoData(db);
-      await loadOverviewData();
-      if (Platform.OS === "web") {
-        globalThis.alert("The sample records have been restored.");
-      } else {
-        Alert.alert("Sample records restored", "The sample records have been restored.");
-      }
-    } catch (error) {
-      const message = error?.message || "Please try again.";
-      if (Platform.OS === "web") {
-        globalThis.alert(`Could not restore sample records: ${message}`);
-      } else {
-        Alert.alert("Could not restore sample records", message);
-      }
-    } finally {
-      setIsResettingDemo(false);
-    }
-  };
-
-  const confirmDemoDataReset = () => {
-    const message =
-      "This will replace all saved vehicles, customers, bookings, and payments with the sample records. This cannot be undone.";
-    if (Platform.OS === "web") {
-      if (globalThis.confirm(`Restore sample records?\n\n${message}`)) {
-        resetDemoData();
-      }
-      return;
-    }
-
-    Alert.alert("Restore sample records?", message, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Restore sample records",
-        style: "destructive",
-        onPress: resetDemoData,
-      },
-    ]);
-  };
-
   const handleLogout = () => {
+    setProfileMenuVisible(false);
     clearAdmin();
     router.replace("/(auth)/signin");
   };
@@ -402,19 +357,6 @@ export default function Overview() {
           />
         </View>
 
-        <TouchableOpacity
-          style={[styles.resetDemoButton, isResettingDemo && styles.resetDemoButtonDisabled]}
-          onPress={confirmDemoDataReset}
-          disabled={isResettingDemo}
-          accessibilityRole="button"
-          accessibilityLabel="Restore sample records"
-        >
-          <Ionicons name="refresh-outline" size={17} color={Colors.warning} />
-          <Text style={styles.resetDemoButtonText}>
-            {isResettingDemo ? "Restoring sample records..." : "Restore sample records"}
-          </Text>
-        </TouchableOpacity>
-
         <View style={{ height: 20 }} />
       </ScrollView>
 
@@ -436,9 +378,30 @@ export default function Overview() {
 
             <View style={styles.menuDivider} />
 
-            <MenuItem icon="person-outline" label="Profile" />
-            <MenuItem icon="settings-outline" label="Settings" />
-            <MenuItem icon="information-circle-outline" label="About us" />
+            <MenuItem
+              icon="person-outline"
+              label="Profile"
+              onPress={() => {
+                setProfileMenuVisible(false);
+                router.push("/profile");
+              }}
+            />
+            <MenuItem
+              icon="settings-outline"
+              label="Settings"
+              onPress={() => {
+                setProfileMenuVisible(false);
+                router.push("/settings");
+              }}
+            />
+            <MenuItem
+              icon="information-circle-outline"
+              label="About us"
+              onPress={() => {
+                setProfileMenuVisible(false);
+                router.push("/about");
+              }}
+            />
             <View style={styles.menuDivider} />
             <TouchableOpacity
               style={styles.menuItem}
@@ -455,9 +418,13 @@ export default function Overview() {
   );
 }
 
-function MenuItem({ icon, label }) {
+function MenuItem({ icon, label, onPress }) {
   return (
-    <TouchableOpacity style={styles.menuItem} accessibilityRole="button">
+    <TouchableOpacity
+      style={styles.menuItem}
+      onPress={onPress}
+      accessibilityRole="button"
+    >
       <Ionicons name={icon} size={18} color={Colors.muted} />
       <Text style={styles.menuItemText}>{label}</Text>
     </TouchableOpacity>
@@ -868,26 +835,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  resetDemoButton: {
-    minHeight: 46,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    backgroundColor: Colors.surface,
-  },
-
-  resetDemoButtonDisabled: {
-    opacity: 0.6,
-  },
-
-  resetDemoButtonText: {
-    color: Colors.warning,
-    fontSize: 11,
-    fontWeight: "700",
-  },
 });
